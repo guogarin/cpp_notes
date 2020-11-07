@@ -98,14 +98,13 @@ first 和 second成员。比如对于`pair<string, string> anon{"Micheal", "Jord
 
 
 &emsp;
-## 关联容器 的操作
-#### (1) 关联容器 有哪些顺序容器没有的 类型别名？
+## 关联容器 有哪些顺序容器没有的 类型别名？
 | 类型别名     | 解释                                                                           |
 | ----------- | ------------------------------------------------------------------------------ |
 | key_type    | 关键字的类型                                                                   |
 | mapped_type | 键值 的类型(**只适用于map**)                                                   |
 | value_type  | **对于set**，与key_type相同； **对于map**，为pair<const key_type, mapped_type> |
-##### &emsp;下面的v1 - v5 分别是什么类型？
+#### &emsp;下面的v1 - v5 分别是什么类型？
 ```cpp
 1. set<string>::value_type v1;         
 2. set<string>::key_type v2;           
@@ -119,13 +118,48 @@ first 和 second成员。比如对于`pair<string, string> anon{"Micheal", "Jord
 &emsp; 3.  v3 is a pair<const string, int>
 &emsp; 4.  v4 is a string
 &emsp; 5.  v5 is an int
-#### (2) 
 
 
 
 &emsp;
-## 关联容器的迭代器
+## 解引用关联容器的迭代器将得到什么？
+&emsp;&emsp;将得到一个 类型为容器的 value_type 类型 的值的引用
 
+
+
+&emsp;
+## 操作 map 时需要注意什么？
+&emsp;&emsp; map的 关键字的类型 是 `const` 的，因此不能修改map的关键字的值：
+```cpp
+map<string, string> authors = { {"Joyce", "James"}, {"Austen", "Jane"}, {"Dickens", "Charles"} };
+auto map_it = authors.begin();
+cout << (*map_it).first; // 正确，输出key的值
+cout << map_it->first;   // 正确，输出key的值
+map_it->first = "Lebron"; // 错误，关键字是const的，不能修改；
+map_it->second = "jack"  // 正确，可以修改 元素的值
+```
+
+
+
+&emsp;
+## 操作 set 时需要注意什么？
+&emsp;&emsp;虽然 `set` 同时定义了 `iterator` 和 `const_iterator` 两种迭代器类型，但是 `iterator` 也只能读取 `set` 中的元素，因为和`map`一样，`set` 中的关键字也是 `const`的：
+```cpp
+set<int> iset = {1, 2, 3, 4, 5};
+auto set_it = iset.begin();
+if(set_it != iset.end()){
+    *set_it = 42; // 错误，set中的关键字是 const 的，不能修改。
+}
+```
+
+
+
+&emsp;
+## 对 关联容器 使用 泛型算法 时需要注意什么？
+&emsp;&emsp; 一般不建议对 关联容器使用 泛型算法，因为：
+1) map 和 set 的关键字都是`const`的，这就意味着不能将关联容器传递给 **修改** 或 **重排** 元素的算法。
+2) 虽然关联容器可以用于 只读取元素的算法，但是这些算法一般都要搜索序列，因为关联容器不能通过它们的关键字进行快速查找，所以效率很低，远远比不上 关联容器专用的算法。
+3) 在实际应用中，我们一般将关联容器作为一个源位置 或 目的位置，比如可以使用`copy()`算法 从关联容器 拷贝到 另一个序列。
 
 
 &emsp;
