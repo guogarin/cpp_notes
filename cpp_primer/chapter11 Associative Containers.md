@@ -162,9 +162,28 @@ if(set_it != iset.end()){
 3) 在实际应用中，我们一般将关联容器作为一个源位置 或 目的位置，比如可以使用`copy()`算法 从关联容器 拷贝到 另一个序列。
 
 
+
 &emsp;
 ## 往map插入元素有哪几种方式？它们有何区别？
+一共有五种方式：
+其中四种是以不同的方法调用 `insert()`。
+对于map来说，因为`map.insert()`的形是 pair类型，因此这四种方法指的是通过四种不同的方法来构造 一个pair，然后插到map里面，也就是说这几种方法 **本质上 都是 往map中插入一个 pair类型**：
+1) 传一个 **value_type** 给insert()     (map的value_type是 pair类型)
+2) 传一个 **pair 类型** 给insert()      (直接传 pair类型)
+3) 利用**make_pair** 构造一个pair  
+4) 传一个 **花括号的值**                (用花括号构造 pair类型)
+```cpp
+// four ways to add word to word_count
+word_count.insert(map<string, size_t>::value_type(word, 1));    // 传一个 **value_type** 给insert()
+word_count.insert(pair<string, size_t>(word, 1));               //  传一个 **pair 类型** 给insert()
+word_count.insert(make_pair(word, 1));                          // 利用**make_pair** 构造一个pair 
+word_count.insert({word, 1});                                   // 传一个 花括号的值(用花括号构造 pair类型)
+```
+剩下的一中是以数组的形式插入：
+以数组的形式插入时，若map中有这个关键字，此时insert 操作是无法插入的，但是用这种方式会直接覆盖掉原先的数据。
+```cpp
 
+```
 
 &emsp;
 ## STL中的map 和 python的map 有何异同？
