@@ -26,7 +26,7 @@
 
 
 &emsp;
-## 如何定义 map 和 set ？
+## 如何定义一个 map 和 set ？
 map 需要分别指定 key 和 value 的类型；
 set 只需要指定 key 的类型，因为它没有值。
 ```cpp
@@ -99,7 +99,7 @@ first 和 second成员。比如对于`pair<string, string> anon{"Micheal", "Jord
 
 &emsp;
 ## 关联容器 有哪些顺序容器没有的 类型别名？
-| 类型别名     | 解释                                                                           |
+| 类型别名    | 解释                                                                           |
 | ----------- | ------------------------------------------------------------------------------ |
 | key_type    | 关键字的类型                                                                   |
 | mapped_type | 键值 的类型(**只适用于map**)                                                   |
@@ -166,8 +166,8 @@ if(set_it != iset.end()){
 &emsp;
 ## 往map插入元素有哪几种方式？它们有何区别？
 一共有五种方式：
-其中四种是以不同的方法调用 `insert()`。
-对于map来说，因为`map.insert()`的形是 pair类型，因此这四种方法指的是通过四种不同的方法来构造 一个pair，然后插到map里面，也就是说这几种方法 **本质上 都是 往map中插入一个 pair类型**：
+&emsp;&emsp;**其中四种** 是以不同的方法调用 `insert()`。
+&emsp;&emsp;对于map来说，因为`map.insert()`的形是 pair类型，因此这四种方法指的是通过四种不同的方法来构造 一个pair，然后插到map里面，也就是说这几种方法 **本质上 都是 往map中插入一个 pair类型**：
 1) 传一个 **value_type** 给insert()     (map的value_type是 pair类型)
 2) 传一个 **pair 类型** 给insert()      (直接传 pair类型)
 3) 利用**make_pair** 构造一个pair  
@@ -179,14 +179,181 @@ word_count.insert(pair<string, size_t>(word, 1));               //  传一个 **
 word_count.insert(make_pair(word, 1));                          // 利用**make_pair** 构造一个pair 
 word_count.insert({word, 1});                                   // 传一个 花括号的值(用花括号构造 pair类型)
 ```
-剩下的一中是以数组的形式插入：
-以数组的形式插入时，若map中有这个关键字，此时insert 操作是无法插入的，但是用这种方式会直接覆盖掉原先的数据。
+**剩下的一种** 是以数组的形式插入：
+&emsp;&emsp; 以数组的形式插入时，若map中有这个关键字，此时insert 操作是无法插入的，但是用这种方式会直接覆盖掉原先的数据：
 ```cpp
-
+map<string, size_t> word_count{("python", 1), ("cpp", 2)};
+word_count["java"] = 3; // 插入
+word_count["cpp"] = 4;  // 覆盖
 ```
+
+
+
+&emsp;
+## 如何判断 map 的 insert操作 是否成功？
+根据`insert()`的返回值判断：
+对于 添加单一元素的 `insert()` `emplace()`，它们会返回一个 `pair`，用来告诉我们是否插入成功，返回的`pair`成员如下：
+&emsp; `first` 成员是一个迭代器，指向具有给定关键字的元素；
+&emsp; `second`成员是一个bool值，`true`表示插入成功，`false`表示插入失败（即元素已在容器中）；
+```cpp
+map<string, size_t> word_count; // empty map from string to size_t
+string word;
+while(cin >> word){
+    auto ret = word_count.insert({word, 1});
+    if (ret.second == false)
+        ++ret.first->second;
+}
+```
+#### 如何理解上面的 `++ret.first->second;`
+运算符`.` 运算符 `->`，先执行而`++`运算符比它俩都要低级，因此从左往右，先执行 运算符`.`，再执行 运算符 `->`，最后执行 `++`，也就是说，这个语句等同于：
+```cpp
+++((ret.first)->second);
+```
+#### 上面的 `word_count` insert操作的 返回值的类型是什么？
+```cpp
+pair<map<string, size_t>::iterator, bool>
+```
+写起来有些复杂，可以用`auto`简化。
+
+
+
+&emsp;
+## multiset 和 multimap 的插入
+#### multimap 和 map 的插入 有何异同？
+**相同点**：
+&emsp; 它们都可以通过`insert()`插入一个`pair`类型
+**不同点**：
+&emsp; (1) multimap 不能通过 下标的方式 插入元素，因为 multimap 没有下标操作；
+&emsp; (2) `insert()`的返回值不一样，multimap 在insert操作成功后将 返回一个 指向刚插入的那个元素的迭代器，因为multimap总是可以插入成功，所以没必要和map一样返回一个bool来判断是否插入成功。
+
+
+
+&emsp;
+## 删除关联容器中 的元素
+#### 有几种方式？
+&emsp;&emsp;和顺序容器一样，关联容器也支持 通过迭代器来删除一个 或 一个范围的 元素：
+```cpp
+word_count.erase(word_count.begin())                            // 通过迭代器删除首元素
+word_count.erase(word_count.begin(), word_count.begin() + 5)    // 删除头5个元素
+```
+&emsp;&emsp;关联容器还有一个 特有的删除操作：它接收一个 `key_type`参数，它会删除所有和`key_type`相匹配的元素，并返回删除的元素个数(map、set就一个，multi版本的可能有多个)
+```cpp
+multimap<string, string> authors;
+authors.insert({"Barth, John", "Sot-Weed Factor"});
+authors.insert({"Barth, John", "Lost in the Funhouse"});
+
+auto cnt = authors.erase("Barth, John"); // cnt的值为2
+```
+
+
+
+&emsp;
+## 关联容器的下标操作
+#### 哪些 有 下标操作？
+只有 map 和 unordered_map 有，因为：
+set只有关键字，没有和关键字相关联的值，因此不需要下标操作；
+multimap、unordered_multimap 是因为它们存在多个值和一个关键字相关联，下标操作会引起歧义，因此没有。
+#### 下表操作有几种？ 它们有何区别？
+两种：
+| 操作      | 解释                                                           |
+| --------- | -------------------------------------------------------------- |
+| `c[k]`    | 若关键字k存在则返回它映射的值，若不存在则插入(进行值初始化)    |
+| `c.at[k]` | 若关键字k存在则返回它映射的值，若不存在则抛出 out_of_range异常 |
+#### 使用 下标操作时需要注意什么？
+&emsp;&emsp;由于关联容器的下标操作和vector等顺序容器很不一样：若将一个不在关联容器中的关键字作为下标，将会插入一个具有此关键字的的元素到map中，因此对于那些 被声明为const的map，使用下标操作将会报错！
+```cpp
+int main ()
+{
+    const map<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}} ;
+    auto map_itr = contacts.begin();
+    while(map_itr != contacts.end()){
+        cout << "Key:" << map_itr->first << ", Value" << map_itr->second << endl;
+        ++map_itr;
+    }
+    cout << contacts["micheal"] << endl;
+    return 0;
+}
+```
+上面的代码未能通过编译，报错如下：
+<div align="center"> <img src="./pic/chapter11/下标访问const的map_报错1.png"> </div>
+<center> <font color=black> <b> 图2 下标访问const类型的map报错 </b> </font> </center>
+
+##### 修改
+&emsp;&emsp; 改成用 `at()` 访问不存在的关键字，即将倒数第二行改成:
+```cpp 
+cout << contacts.at("micheal") << endl;
+```
+最后顺利通过编译，但运行时报错如下：
+>Key:Barth, ValueJohn
+Key:Bruce, ValueLi
+Key:Jay, Valuechou
+terminate called after throwing an instance of 'std::out_of_range'
+  what():  map::at
+Aborted (core dumped)
+
+**报错原因：**
+&emsp;&emsp; 虽然用 `at()` 访问不存在与map中关键字不会往map中插入新值，这绕开了 `const` 的限制，但会抛出一个 运行时异常 `out_of_range`。
+#### 如果只是想知道 某个关键字 是否在 map或set 中，应该怎么写？
+&emsp;&emsp; 可以用 `at()` 访问该关键字，然后捕捉  `out_of_range` 异常:
+```cpp
+int main ()
+{
+    map<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}};
+
+    try{
+        cout << contacts.at("micheal") << endl;
+    }catch (out_of_range){
+        cout << "micheal is not in map contacts! " << endl;
+    }
+
+    return 0;
+}
+```
+运行结果：
+> micheal is not in map contacts! 
+
+**更简单的方法**：使用 `find()`
+```cpp
+int main ()
+{
+    map<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}};
+
+    if(contacts.find("micheal") ！= contacts.end()){
+        cout << contacts.at("micheal") << endl;
+    }else{
+        cout << "micheal is not in map contacts! " << endl;
+    }
+
+    return 0;
+}
+```
+
+
+
+&emsp;
+## 关联容器的查找操作
+#### 如要查找某一关键字是否在 容器中，推荐使用哪个方法？
+&emsp;&emsp; 因为下标和at操作只适用非const的map和unordered_map（下标可能会插入元素，at操作 可能会抛out_of_range异常），使用`find()`操作比较合适（`count()`操作也可以）。
+#### 如何统计一个关键字在 某关联容器中出现的次数？
+&emsp;&emsp; 使用`c.count(key)`比较合适
+#### 如何查找 容器中 第一个 关键字 不小于(不大于)key 的元素？ 使用时需要注意什么？
+&emsp;&emsp; 使用`lower_bound()`、`upper_bound()`
+&emsp;&emsp; `lower_bound()` 和 `upper_bound()`不适合无序容器。
+
+#### 在一个关联容器中查找元素的操作 列表
+| 操作             | 解释                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| c.find(k)        | 返回一个迭代器，指向第一个关键字为k的元素，若k不在容器中，则返回尾后迭代器              |
+| c.count(k)       | 返回关键字等于k的元素的数量。对于不允许重复关键字的容器，返回值永远是0或1               |
+| c.lower_bound(k) | 返回一个迭代器，指向第一个关键字不小于k的元素                                           |
+| c.upper_bound(k) | 返回一个迭代器，指向第一个关键字大于k的元素                                             |
+| c.equal_range(k) | 返回一个迭代器pair，表示关键字等于k的元素的返回。若k不存在，pair的两个成员均等于c.end() |
+
+https://www.cnblogs.com/wuchanming/p/3923761.html
 
 &emsp;
 ## STL中的map 和 python的map 有何异同？
+
 
 
 &emsp;
