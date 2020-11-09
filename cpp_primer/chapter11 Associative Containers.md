@@ -339,6 +339,47 @@ int main ()
 #### 如何查找 容器中 第一个 关键字 不小于(不大于)key 的元素？ 使用时需要注意什么？
 &emsp;&emsp; 使用`lower_bound()`、`upper_bound()`
 &emsp;&emsp; `lower_bound()` 和 `upper_bound()`不适合无序容器。
+#### 如何在multimap 和 multiset中查找元素？
+&emsp;&emsp;对于 multimap 和 multiset，如果它们里面含有重复的关键字，那这些重复的关键字一定是相邻存储的，我们可以利用这一特性：
+**方法一**：
+```cpp
+int main()
+{
+    multimap<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}, {"Bruce", "Willis "}};
+    string target = "Bruce";
+    auto cnt = contacts.count(target);
+    if(cnt > 0){
+        auto beg_itr = contacts.find(target);
+        for(; cnt > 0; --cnt, ++beg_itr)
+            cout << "Key:" << beg_itr->first << ", Value: " << beg_itr->second <<endl;
+    }
+
+    return 0;
+}
+```
+**遇到的错误：**
+&emsp; multimap也是放在头文件 `map` 里面的。
+**方法二**：
+用  `lower_bound()` 和 `upper_bound()` 来获取一个区间：
+```cpp
+int main()
+{
+    multimap<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}, {"Bruce", "Willis "}};
+    string target = "Bruce";
+
+    // 1. multimap 中的关键字 是基本有序的;
+    // 2. lower_bound(target)获取的是第一个为关键字为 target 的元素的迭代器；
+    // 3. upper_bound(target)获得的是第一个 关键字 大于 target 的元素的迭代器；
+    // 4. 因此 beg 和 end形成了一个区间，刚好包含了值为 target 的区间
+    // 5. 更多关于 lower_bound() 和 upper_bound() 的描述可以看本文中 对它们专门的讲解。
+    for(auto beg = contacts.lower_bound(target), end = contacts.upper_bound(target); beg != end; ++beg)
+        cout << "Key:" << beg->first << ", Value: " << beg->second <<endl;
+
+    return 0;
+}
+```
+**方法三：**
+TODO: 
 
 #### 在一个关联容器中查找元素的操作 列表
 | 操作             | 解释                                                                                    |
@@ -349,7 +390,31 @@ int main ()
 | c.upper_bound(k) | 返回一个迭代器，指向第一个关键字大于k的元素                                             |
 | c.equal_range(k) | 返回一个迭代器pair，表示关键字等于k的元素的返回。若k不存在，pair的两个成员均等于c.end() |
 
-https://www.cnblogs.com/wuchanming/p/3923761.html
+
+
+##  `lower_bound()` 和 `upper_bound()` 
+### `lower_bound()`、`upper_bound()` 的作用是？
+**定义**：
+和 泛型算法 的 `lower_bound()`、`upper_bound()` 一样，它俩都是搜索算法：
+`map::lower_bound(key)` : 返回map中 **第一个 大于或等于key**的迭代器
+`map::upper_bound(key`) : 返回map中 **第一个 大于key** 的迭代器
+定义过于晦涩，我们用代码和图来解释一下把，我们都知道这两个都是 关键字的 搜索算法，那搜索的情况只有两种：关键字存在 或 不存在：
+**关键字不存在时**：
+&emsp;&emsp;`mp.lower_bound(4)` 和 `mp.upper_bound(4)` :可以看到`mp.lower_bound(4)`  指向了第一个4，`mp.upper_bound(4)`指向了最后一个4的下一个元素，就有点像，它俩刚好行车过了一个区间，将 22 包围了起来
+<div align="center"> <img src="./pic/chapter11/关键字存在.png"> </div>
+<center> <font color=black> <b> 图3 关键字存在 </b> </font> </center>
+
+**关键字存在时**：
+&emsp;&emsp;如下图所示，`mp.lower_bound(21)` 和 `mp.upper_bound(21)` 都指向了同一个位置，即 20 和 22中间，它俩的返回值的原则是：**在不破坏排序状态的原则性，可插入的第一个位置**，在这个原则下，如果 待查找 的值大于[first, last]之间的所有元素，则返回last。
+<div align="center"> <img src="./pic/chapter11/lower_bound----upper_bound.jpg"> </div>
+<center> <font color=black> <b> 图3 关键字存在 </b> </font> </center>
+
+###  `lower_bound()`、`upper_bound()` 的原理
+&emsp;&emsp;它俩都是基于 二分查找
+#### 使用 `lower_bound()`、`upper_bound()` 时需要注意什么？
+&emsp;&emsp; 因为它俩都是基于 二分查找，因此它们**只能用于 有序区间**，也就是说 `unordered` 系列的关联容器都不能用。
+
+
 
 &emsp;
 ## STL中的map 和 python的map 有何异同？
