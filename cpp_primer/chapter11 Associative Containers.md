@@ -379,8 +379,22 @@ int main()
 }
 ```
 **方法三：**
-TODO: 
+&emsp;&emsp;还有一种方法是用  `equal_range` 函数，这是这几种方法中最简单的方法
+```cpp
+int main ()
+{
+    multimap<string, string>contacts{{"Barth", "John"}, {"Bruce", "Li"}, {"Jay", "chou"}, {"Bruce", "Willis "}};
+    string target = "Bruce";
 
+    auto rang_pair = contacts.equal_range(target);
+
+    while(rang_pair.first != rang_pair.second){
+        cout << "Key:" << rang_pair.first->first << ", Value: " << rang_pair.first->second     <<endl;
+        ++rang_pair.first;
+    }
+    return 0;
+}
+```
 #### 在一个关联容器中查找元素的操作 列表
 | 操作             | 解释                                                                                    |
 | ---------------- | --------------------------------------------------------------------------------------- |
@@ -392,8 +406,9 @@ TODO:
 
 
 
-##  `lower_bound()` 和 `upper_bound()` 
-### `lower_bound()`、`upper_bound()` 的作用是？
+&emsp;
+##  lower_bound() 、 upper_bound()、  equal_range()
+#### 它们的作用是？
 **定义**：
 和 泛型算法 的 `lower_bound()`、`upper_bound()` 一样，它俩都是搜索算法：
 `map::lower_bound(key)` : 返回map中 **第一个 大于或等于key**的迭代器
@@ -409,10 +424,27 @@ TODO:
 <div align="center"> <img src="./pic/chapter11/lower_bound----upper_bound.jpg"> </div>
 <center> <font color=black> <b> 图3 关键字存在 </b> </font> </center>
 
-###  `lower_bound()`、`upper_bound()` 的原理
+&emsp;&emsp; 对于 `equal_range()`，它返回一个pair对象，其first和second成员都成为迭代器，且分别指向输入序列中所有值等于 val 的元素所组成的子序列的起始及末尾（即最后一个元素之后的位置）位置，first成员等于 `lower_bound()` 执行于同一输入序列后的返，second成员的值等同于 `upper_bound()` 执行于同一输入序列后的返回。
+
+####  lower_bound()、 upper_bound() 的原理
 &emsp;&emsp;它俩都是基于 二分查找
-#### 使用 `lower_bound()`、`upper_bound()` 时需要注意什么？
+#### 使用 lower_bound()、upper_bound() 时需要注意什么？
 &emsp;&emsp; 因为它俩都是基于 二分查找，因此它们**只能用于 有序区间**，也就是说 `unordered` 系列的关联容器都不能用。
+
+
+
+&emsp;
+## 无序容器
+
+
+
+&emsp;
+## 有序关联容器 和 无序关联容器
+#### 底层数据结构上的差异
+&emsp;&emsp; map内部是红黑树，在插入元素时会自动排序，而无序容器unordered_map内部是散列表，通过哈希而不是排序来快速操作元素，使得效率更高
+
+#### 性能上的对比
+&emsp;&emsp; map内部是红黑树，在插入元素时会自动排序，而无序容器unordered_map内部是散列表，通过哈希而不是排序来快速操作元素，使得效率更高
 
 
 
