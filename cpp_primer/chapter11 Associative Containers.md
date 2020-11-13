@@ -530,8 +530,45 @@ max_load_factor()	| 返回或者设置当前 unordered_map 容器的最大负载
 rehash(n)	        | 尝试重新调整桶的数量为等于或大于 n 的值。如果 n 大于当前容器使用的桶数，则该方法会是容器重新哈希，该容器新的桶数将等于或大于 n。反之，如果 n 的值小于当前容器使用的桶数，则调用此方法可能没有任何作用。
 reserve(n)	        | 将容器使用的桶数（bucket_count() 方法的返回值）设置为最适合存储 n 个元素的桶数。
 hash_function()	    | 返回当前容器使用的哈希函数对象。
-#### 无序容器对关键字有何要求？为什么
+#### 无序容器对关键字类型有何要求？为什么
+&emsp;&emsp; 默认情况下，无序容器使用关键字类型的`==`运算符来比较元素，它们还使用一个`hash<key_type>`类型的对象来生成每个元素的哈希值。
+&emsp;&emsp; 标准库为内置类型（包括指针）提供了hash模板。还为一些标准库类型，包括string和智能指针类型定义了hash。因此，我们可以直接定义关键字是内置类型（包括指针类型）、string还是智能指针的无序容器。
+&emsp;&emsp; 但是，我们不能直接定义 **关键字类型为自定义类类型** 的无序容器。与容器不同，不能直接使用哈希模板，而必须提供我们自己的hash模板版本，关于如何提供自己的hash模板版本，在16.5节阐述
+如：
+```cpp
+unordered_map<string, size_t> word_count; // 为内置类型创建无序容器
+```
+&emsp; 我们不能使用默认的hash，而是使用另一种方法：类似于为有序容器重载关键字类型的默认比较操作。也就是说，如果要将Sales_data用作无序容器的关键字，我们需要：
+&emsp;&emsp; ① 提供函数来替代`==`运算符 
+&emsp;&emsp; ② 提供哈希值计算函数。
+下面我们先定义上述的两个函数：
+```cpp
+// 自定义的哈希函数
+size_t hasher(const Sales_data &sd)
+{
+    return hash<string>()(sd.isbn());   // hash对象是标注库定义的，用来计算ISBN成员是哈希值
+}
 
+// 自定义的 "=="比较 操作
+bool eqOp(const Sales_data &lhs, const Sales_data &rhs)
+{
+    return lhs.isbn() == rhs.isbn();
+}
+```
+使用上述函数我们可以定义一个`unordered_multiset`：
+```cpp
+// 定义类型别名，可以简化定义
+using SD_multiset = unordered_multimap<Sales_data, decltype(hash)*, decltype(eqOp)*>;
+SD_multiset bookstore(42, hasher, eqOp);
+```
+关于 `decltype(hash)*`：
+&emsp; ① decltype(hash)返回的是函数类型，加上`*`就是函数指针了
+&emsp; ② 注意区分`decltype(hash)`和 `decltype(hash())`,`decltype(hash)`返回的是 函数类型，`decltype(hash())`返回的是 函数返回值类型，具体也可以看第二章和第六章关于`decltype`的内容。
+假如类定义了自己的 `==`运算符，则可以值重载哈希函数：
+```cpp
+// Foo必须有自己的 ==运算符
+unordered_set<Foo, decltype(FooHash)*> fooSet(10, FooHash);
+```
 
 
 
@@ -560,7 +597,7 @@ http://c.biancheng.net/stl/map_set/
 
 &emsp;
 ## STL中的map 和 python的map 有何异同？
-
+. TODO: 
 
 
 &emsp;
