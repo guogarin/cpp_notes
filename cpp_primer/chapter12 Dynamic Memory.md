@@ -107,7 +107,96 @@ p = nullptr；
 
 &emsp;
 ## 3. shared_ptr类
+### 3.1 如何定义一个指向 string类型 的 shared_ptr?
+```cpp
+shared_ptr<string>p1 = "Hello wordl";
+```
+### 3.2 定义一个 shared_ptr 时，若不对齐进行显式初始化，变量的值是？
+&emsp;&emsp;此时将执行默认初始化，里面是一个空指针。
+### 3.3 shared_ptr支持的操作
+#### 3.3.1 和unique_ptr共有的操作
+操作 | 解释
+---| ---
+shared_ptr<T> sp |	空智能指针，可以指向类型为T的对象
+unique_ptr<T> up |	
+p	             |  将p当做 判断条件，若p指向了一个对象则返回`true`
+*p	             |  解引用
+p->mem	         |  等价于(*p).mem
+p.get()	         |  返回p中保存的指针，此时应该小心，因为若智能指针释放了其对象，则p指向的对象也同样被释放了
+swap(p,q)        |	交换p和q中的指针
+p.swap(q)        |	交换p和q中的指针
+#### 3.3.2 shared_ptr独有的操作
+操作|解释
+---| ---
+make_shared<t>(args) | 返回一个shared_ptr，指向一个动态分配的类型为T的对象，并使用args初始化该对象
+shared_ptr<T>p(q)	 | p是shared_ptr q的拷贝，此操作增加q中的计数器，q中的指针必须能转换为T*
+p=q	                 | p和q都是shared_ptr，所保存的指针必须能相互转换。此操作会递减p中的引用计数，递增q中的引用计数。若p中的引用计数变为0，则将其管理的内存释放
+p.use_count()	     | 返回与p共享对象的智能指针数量，此操作可能很慢，平时主要用于调试。
+p.unique()	         | 若p.use_count()为1，返回true;否则返回false
+#### 3.3.3 如何判断 指向string的智能指针p指向的值是否为空 比较安全？
+和常规指针一样，取值之前先判空：
+```cpp
+if(p && p->empty)
+    *p = "Hello";
+```
+### 3.4 make_shared 函数
+#### 3.4.1 作用是？
+&emsp;&emsp; make_shared 函数用于分配**动态内存**，可以说是最安全的分配和使用动态内存的方法，此函数 在动态内存中分配一个对象 并初始化它，然后返回指向此对象的 shared_ptr
+#### 3.4.2 怎么用？
+&emsp;&emsp; 
+```cpp
+shared_ptr<int> p1 = make_shared<int>(42);
+shared_ptr<string> p2 = make_shared<string>(10, "9");
+shared_ptr<int> p3 = make_shared<int>();    // 请求值初始化，p3指向的int的值为0
+```
+也可以和`auto`搭配使用：
+```cpp
+auto p4 = make_shared<vecrot<string>>();
+```
+#### 3.4.3 原理是？
+&emsp; 和顺序容器的`emplace`操作一样，`make_shared`会调用的是其参数来构造给定类型的对象，比如：
+&emsp;&emsp;  ① 对于 `make_shared<string>`,传递的参数必须和 string类 的某个构造函数相匹配；
+&emsp;&emsp;  ② 对于 `make_shared<int>`,传递的参数必须可以能用来初始化一个int
+### 3.5 shared_ptr 的 引用计数 规则是怎样的？
+&emsp; 指向相同资源的所有 shared_ptr 共享“引用计数管理区域”，并采用原子操作保证该区域中的引用计数值被互斥地访问。因此每当进行 **拷贝** 或 **赋值** 操作时，每个`shared_ptr` 都会记录有多少个 其它的`shared_ptr` 和它一样指向了相同的对象，我们可以认为每个 `shared_ptr` 都有一个 关联计数器（通常被称为引用计数）：
+&emsp;&emsp;(1) 每当我们拷贝一个 `shared_ptr`，该计数器都会递增，也就是说：① 将`shared_ptr`作为函数的参数传递给一个函数（拷贝）、 ② 将`shared_ptr`作为函数的返回值（拷贝）、③ 将`shared_ptr`拷贝给其它`shared_ptr`都会导致它关联的引用计数递增
+&emsp;&emsp;(2) 每当我们给`shared_ptr`赋新值、或`shared_ptr`被销毁（比如一个局部`shared_ptr`离开其作用域）会导致关联的引用计数递减
+#### 3.5.1 将一个 `shared_ptr`指针q 赋给 另一个`shared_ptr`指针r 会发生什么？
+q的引用计数+1，r原来指向的对象 的引用计数-1
+```cpp
+auto r = make_shared<int>(99);
+// 1. q的引用计数+1
+// 2. r原来指向的对象 的引用计数-1
+// 3. 因为r原来指向的对象只有一个引用者，所以r原来指向的对象将被自动释放。
+r = q; 
+```
+### 3.6 shared_ptr 通过什么控制 管理的对象的 初始化 和 销毁？
+初始化：元素的构造函数
+销毁：shared_ptr类的 析构函数负责销毁对象，它会递减它所指向的对象的引用计数，如果引用计数变为0，则shared_ptr的析构函数 不但会销毁shared_ptr对象，还会释放 shared_ptr对象 所指向的内存：
+```cpp
+shared_ptr<Foo> factory(T arg)
+{
+    return make_shared<Foo>(arg);//返回shared_ptr，指向一个类型为Foo的对象，用类型为T的arg初始化
+}
 
+void use_factory_1(T arg)
+{
+    shared_ptr<Foo> p = factory(arg);// 调用factory初始化p，p所指对象的引用计数+1变成1
+    // use_factory_1 执行结束，销毁p，p所指对象的引用计数-1变成0，p指向的内存也被释放
+}
+
+shared_ptr<Foo> use_factory_2(T arg)
+{
+    shared_ptr<Foo> p = factory(arg);// 调用factory初始化p，p所指对象的引用计数+1变成1
+    return p;//返回p，p所指对象的引用计数+1变成2
+}// use_factory_2 执行结束，销毁p，p所指对象的引用计数-1变成1，p指向的内存并不会被释放
+```
+注意比较 `use_factory_1` 和 `use_factory_2`：
+&emsp; 因为`use_factory_1`中，`shared_ptr`对象p所指向内存  的引用计数为1，因此在函数结束后，`shared_ptr`对象p 被销毁，它指向的内存的引用计数编程了0，因此`shared_ptr`对象p指向的内存也被释放了。
+&emsp;而在`use_factory_2`中，它返回了构造的`shared_ptr`对象，因此引用计数为2，即使函数结束后 `shared_ptr`对象p被销毁，它指向的内存也不会被释放。
+### 3.7 使用 `shared_ptr` 就一定不会内存泄露了吗？
+&emsp;&emsp;不是的，因为在最后一个指向它的`shared_ptr`被销毁前内存都不会释放，所以还是有可能会造成内存泄露的。
+### 3.8 
 
 
 .TODO:
