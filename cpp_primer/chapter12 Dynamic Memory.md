@@ -74,19 +74,52 @@ int * p2 = new (nothrow) int; // 若分配失败，则new将返回一个空指�
 &emsp;&emsp; windows工具：Visual Leak Detector
 (2) 通过日志：
 &emsp;&emsp; 将new和delete分别封装为函数，专门用于分配内存和释放内存，并在函数中记录 所分配内存的地址和长度、释放内存的地址和长度，等到停服务的时候看一下能不能匹配上就能定位内存泄露的代码了。
-### 使用delete释放内存时要注意什么？
+### 1.10 使用delete释放内存时要注意什么？
 &emsp;&emsp; (1) delete 接收的是 指针；
-&emsp;&emsp; (2) 传给delete的必须是 指向动态分配的内存 或 一个空指针；
-### 什么是 空悬指针(dangling pointer)？如何解决？
+&emsp;&emsp; (2) 传给delete的必须是 **指向动态分配的内存的指针** 或 **空指针**；
+```cpp 
+int i, *pi1 = &i, *pi2 = nullptr;
+double *pd = new double(33), *pd2 = pd;
+delete i; // 错误: i不是指针
+delete pi1; // 未定义: pi1 指向的是一个局部变量
+delete pd; // 正确
+delete pd2; // 未定义: pd2 指向的内存已经被释放了
+delete pi2; // 正确: delete 空指针是没问题的
+
+const int *pci = new const int(1024);
+delete pci; // 正确:  const 对象的值不能改变，但是可以被销毁。
+```
+### 1.11 什么是 空悬指针(dangling pointer)？如何解决？
 &emsp;&emsp; 对于指针 p，它指向的是一块动态分配的内存，在这块内存将在被delete后被释放，此时指针p仍然指向了这段被delete的指针，此时指针p就被称为 空悬指针(dangling pointer)。
 &emsp;&emsp; 内存delete之后，马上将指向该内存的指针置为 nullptr，但这也只能提供有限的保护，来看下面的代码：
 ```cpp
 int *p(new int(42));
-auto q = p;// p 和 q 指向了相同的内存
-delete p；
-p = nullptr；
+auto q = p;     // p 和 q 指向了相同的内存
+delete p;       // p 现在是 空悬指针
+p = nullptr;
 ```
 此时虽然p被置为nullptr了，但q依然是一个空悬指针，在实际系统中，查找指向相同内存的所有指针是异常困难的，因此空悬指针很难被解决。
+### 1.12 为什么说有一些动态内存除非在程序关闭时由OS回收外，永远不可能被释放？
+我们来看下面的代码：
+```cpp
+// factory 返回了一个指向动态分配对象的指针
+Foo* factory(T arg)
+{
+    // process arg as appropriate
+    return new Foo(arg); // 调用者需要负责释放该动态内存
+}
+
+void use_factory(T arg)
+{
+    Foo *p = factory(arg);
+    // 使用p但不delete它
+}   // p在离开作用域后被释放，但是p指向的动态内存并没有被释放
+```
+在`use_factory`函数中，p离开了作用域，但是p指向的动态内存并没有被释放，而且由于 p 是唯一指向该动态内存的指针，因此在p被销毁后，它所指向的内存永远不可能被释放，除了在程序关闭时由OS回收。
+### 3.13 使用 new 和 delete 管理动态内存有哪些常见的错误？
+&emsp;&emsp;(1) 忘记delete，造成内存泄露
+&emsp;&emsp;(2) 使用已经释放了的对象，可以通过将释放的内存置空来检测这种错误；
+&emsp;&emsp;(3) 同一块内存被 释放多次。在有 两个指针 指向相同的动态内存时，这种错误很容易犯，因为第一次delete时，空间就已经还给了 堆，再delete的话可能会造成堆被破坏。
 
 
 
@@ -196,7 +229,12 @@ shared_ptr<Foo> use_factory_2(T arg)
 &emsp;而在`use_factory_2`中，它返回了构造的`shared_ptr`对象，因此引用计数为2，即使函数结束后 `shared_ptr`对象p被销毁，它指向的内存也不会被释放。
 ### 3.7 使用 `shared_ptr` 就一定不会内存泄露了吗？
 &emsp;&emsp;不是的，因为在最后一个指向它的`shared_ptr`被销毁前内存都不会释放，所以还是有可能会造成内存泄露的。
-### 3.8 
+### 3.8 程序一般出于什么原因一定要使用容易造成 内存泄露的 动态内存？
+(1) 程序不知道自己需要使用多少对象；
+(2) 程序不知道所需对象的准确类型；
+(3) 程序需要在多个对象间共享数据
+### 3.9 
+
 
 
 .TODO:
