@@ -1,6 +1,6 @@
 # 动态内存
 
-## 1. new 和 delete
+## 一、new 和 delete
 ### 1.1 可以为new分配的对象命名吗？
 &emsp;&emsp;不能，因为在堆上分配的内存是无名的，因此new无法为期分配的对象命名。
 ### 1.2 new的返回值是什么？
@@ -124,7 +124,7 @@ void use_factory(T arg)
 
 
 &emsp;
-## 2. 智能指针
+## 二、智能指针
 ### 2.1 标准库定义了哪些智能指针？它们分别用于什么场景？
 &emsp; `shared_ptr` 和 `unique_ptr`：
 &emsp;&emsp; `shared_ptr`允许多个指针指向同一个对象；
@@ -134,12 +134,11 @@ void use_factory(T arg)
 ### 2.3 使用智能指针有什么好处？
 &emsp;&emsp;智能指针的作用是管理一个指针，因为存在以下这种情况：申请的空间在函数结束时忘记释放，造成内存泄漏。使用智能指针可以很大程度上的避免这个问题，因为智能指针是一个类，当超出了类的实例对象的作用域时，会自动调用对象的析构函数，析构函数会自动释放资源。所以智能指针的作用原理就是在函数结束时自动释放内存空间，不需要手动释放内存空间。
 &emsp;&emsp;也就是说，使用智能指针可以简化程序员的工作，避免 内存泄露
-### 2.4 
 
 
 
 &emsp;
-## 3. shared_ptr类
+## 三、shared_ptr类
 ### 3.1 如何定义一个指向 string类型 的 shared_ptr?
 ```cpp
 shared_ptr<string>p1 = "Hello wordl";
@@ -233,11 +232,63 @@ shared_ptr<Foo> use_factory_2(T arg)
 (1) 程序不知道自己需要使用多少对象；
 (2) 程序不知道所需对象的准确类型；
 (3) 程序需要在多个对象间共享数据
-### 3.9 
+### 3.9 定义和改变shared_ptr的其它方法
+、TODO: 表12.3
+
+
+&emsp;
+## 四、new 和 shared_ptr
+### 4.1 使用new出来的指针初始化 shared_ptr时要注意什么？为什么？
+&emsp;&emsp; **使用new初始化shared_ptr时**必须使用直接初始化，因为 `shared_ptr`类 中接收 指针参数 的构造函数是 `explicit` 的，因此我们不能使用 内置指针(new出来的指针) 隐式转换为一个智能指针：
+```cpp
+shared_ptr<int> p1 = new int(1024);     // 错误：不能用拷贝初始化，必须使用 直接初始化
+shared_ptr<int> p2(new int(1024));      // 正确: 直接初始化
+```
+这个错误在返回`shared_ptr`指针时很容易犯：
+```cpp
+shared_ptr<int> clone(int p){
+    return new int(p); // 错误：映射转换为 shared_ptr
+}
+```
+应该怎么写才对：
+```cpp
+shared_ptr<int> clone(int p){
+    return shared_ptr<int>(new int(p)); // 正确：显示的创建了一个 shared_ptr
+}
+```
+**注意：** 并不是`shared_ptr`不能进行 拷贝初始化，而是不能通过 内置指针 对 `shared_ptr` 进行拷贝初始化！
+### 4.3 混用 普通指针 和 智能指针有何风险？
+来看下面这个函数：
+```cpp
+// ptr 在函数被调用时 被创建并初始化
+void process(shared_ptr<int> ptr){
+    // 使用 ptr
+} // ptr 离开作用域后被销毁
+```
+然后考虑下面的调用：
+```cpp
+int *x(new int(1024)); //  x 是一个 指向动态内存的内置指针
+process(x); // 错误1: 无法将 int* 转换为 shared_ptr<int>
+process(shared_ptr<int>(x)); // 正确, 用内置指针来初始化 实参
+int j = *x; // 错误2：未定义的行为: x 在调用完process后就被释放了
+```
+上面的代码显然是错误的：
+&emsp;&emsp;**错误1**：使用new出来的指针初始化shared_ptr时只能直接初始化，而直接传 x 进去，是用x对 process的形参ptr 进行拷贝初始化，这样显然是错误的；
+&emsp;&emsp;**错误2**：因为我们将 一个临时的shared_ptr(即`shared_ptr<int>(x)`) 传给了 process函数，内置指针x 将对 rocess的形参ptr 进行直接初始化，这是合法的，但在process函数结束后，实参ptr就被销毁了，因为ptr和x指向的是同一动态内存，因此后面对 指针x访问显然是错误的。
+正确的调用应该为：
+```cpp
+shared_ptr<int> p(new int(42)); // 此时只能指针p的引用计数为1
+process(p); // 1. 通过p对形参ptr进行拷贝初始化，因此在函数里面时，p的引用计数为 2
+            // 2. 函数调用结束后，参数ptr被销毁，此时p的引用计数为1
+
+int i = *p; // 正确: p的引用计数为1
+```
+### 4.4 为什么推荐make_shared函数，而不是new运算符？
+&emsp;&emsp; 智能指针`shared_ptr`可以协调对象的析构，但这仅限于其自身的拷贝(指的是`shared_ptr`对象之间的拷贝)，使用 `make_shared`函数可以在 分配对象的同时 就将 `shared_ptr`与其绑定，从而避免了无意间将同一块内存绑定到了多个独立的`shared_ptr`上
+https://blog.csdn.net/coolmeme/article/details/43405155 TODO:
 
 
 
-.TODO:
 https://zhuanlan.zhihu.com/p/63488452
 https://www.zhihu.com/question/61008381
 https://www.zhihu.com/question/319277442
