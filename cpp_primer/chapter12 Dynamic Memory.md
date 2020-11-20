@@ -134,6 +134,9 @@ void use_factory(T arg)
 ### 2.3 使用智能指针有什么好处？
 &emsp;&emsp;智能指针的作用是管理一个指针，因为存在以下这种情况：申请的空间在函数结束时忘记释放，造成内存泄漏。使用智能指针可以很大程度上的避免这个问题，因为智能指针是一个类，当超出了类的实例对象的作用域时，会自动调用对象的析构函数，析构函数会自动释放资源。所以智能指针的作用原理就是在函数结束时自动释放内存空间，不需要手动释放内存空间。
 &emsp;&emsp;也就是说，使用智能指针可以简化程序员的工作，避免 内存泄露
+### 2.4 智能指针 可以 托管 非动态分配的对象吗？
+&emsp;&emsp;默认情况下，不能，因为智能指针默认，只有指向动态分配的对象的指针才能交给 shared_ptr 对象托管。将指向普通局部变量、全局变量的指针交给 shared_ptr 托管，编译时不会有问题，但程序运行时会出错，因为不能析构一个并没有指向动态分配的内存空间的指针。
+&emsp;&emsp; 如果想将智能指针绑定到 一个指向非动态分配的对象，需要提供自己的操作来替代delete
 
 
 
@@ -149,22 +152,22 @@ shared_ptr<string>p1 = "Hello wordl";
 #### 3.3.1 和unique_ptr共有的操作
 操作 | 解释
 ---| ---
-shared_ptr<T> sp |	空智能指针，可以指向类型为T的对象
-unique_ptr<T> up |	
-p	             |  将p当做 判断条件，若p指向了一个对象则返回`true`
-*p	             |  解引用
-p->mem	         |  等价于(*p).mem
-p.get()	         |  返回p中保存的指针，此时应该小心，因为若智能指针释放了其对象，则p指向的对象也同样被释放了
-swap(p,q)        |	交换p和q中的指针
-p.swap(q)        |	交换p和q中的指针
+`shared_ptr<T>sp` |	空智能指针，可以指向类型为T的对象
+`unique_ptr<T>up `|	
+`p	     `        |  将p当做 判断条件，若p指向了一个对象则返回`true`
+`*p	     `        |  解引用
+`p->mem	 `        |  等价于(*p).mem
+`p.get()	 `        |  返回p中保存的指针，此时应该小心，因为若智能指针释放了其对象，则p指向的对象也同样被释放了
+`swap(p,q)`        |	交换p和q中的指针
+`p.swap(q)`        |	交换p和q中的指针
 #### 3.3.2 shared_ptr独有的操作
-操作|解释
----| ---
-make_shared<t>(args) | 返回一个shared_ptr，指向一个动态分配的类型为T的对象，并使用args初始化该对象
-shared_ptr<T>p(q)	 | p是shared_ptr q的拷贝，此操作增加q中的计数器，q中的指针必须能转换为T*
-p=q	                 | p和q都是shared_ptr，所保存的指针必须能相互转换。此操作会递减p中的引用计数，递增q中的引用计数。若p中的引用计数变为0，则将其管理的内存释放
-p.use_count()	     | 返回与p共享对象的智能指针数量，此操作可能很慢，平时主要用于调试。
-p.unique()	         | 若p.use_count()为1，返回true;否则返回false
+操作                 |解释
+----------------------| ---
+`make_shared<t>(args)`| 返回一个shared_ptr，指向一个动态分配的类型为T的对象，并使用args初始化该对象
+`shared_ptr<T>p(q)	 `| p是shared_ptr q的拷贝，此操作增加q中的计数器，q中的指针必须能转换为T*
+`p=q	                 `| p和q都是shared_ptr，所保存的指针必须能相互转换。此操作会递减p中的引用计数，递增q中的引用计数。若p中的引用计数变为0，则将其管理的内存释放
+`p.use_count()	 `    | 返回与p共享对象的智能指针数量，此操作可能很慢，平时主要用于调试。
+`p.unique()	     `    | 若p.use_count()为1，返回true;否则返回false
 #### 3.3.3 如何判断 指向string的智能指针p指向的值是否为空 比较安全？
 和常规指针一样，取值之前先判空：
 ```cpp
@@ -233,12 +236,15 @@ shared_ptr<Foo> use_factory_2(T arg)
 (2) 程序不知道所需对象的准确类型；
 (3) 程序需要在多个对象间共享数据
 ### 3.9 定义和改变shared_ptr的其它方法
-、TODO: 表12.3
+```cpp
+shared_ptr<T>p(q)       // p管理内置指针q指向的对象，其中q必须指向new分配的内存，而且必须可以转换为T*类型
+shared_ptr<T>p(u)       // 从 unique_ptr指针u 那里接管对象的所有权，然后将u置空
+shared_ptr<T>p(q, d)    // p接管了 内置指针q 所指向的对象，q必须能转换为T*，并用d来替换delete释放资源
 
-
-&emsp;
-## 四、new 和 shared_ptr
-### 4.1 使用new出来的指针初始化 shared_ptr时要注意什么？为什么？
+shared_ptr<T>p(p2)      // p是 shared_ptr对象p2的拷贝
+shared_ptr<T>p(p2, d)   // 和上面一样，p是 shared_ptr对象p2的拷贝，但是会使用d来替换delete释放资源
+```
+### 3.10 使用new出来的指针初始化 shared_ptr时要注意什么？为什么？
 &emsp;&emsp; **使用new初始化shared_ptr时**必须使用直接初始化，因为 `shared_ptr`类 中接收 指针参数 的构造函数是 `explicit` 的，因此我们不能使用 内置指针(new出来的指针) 隐式转换为一个智能指针：
 ```cpp
 shared_ptr<int> p1 = new int(1024);     // 错误：不能用拷贝初始化，必须使用 直接初始化
@@ -257,7 +263,7 @@ shared_ptr<int> clone(int p){
 }
 ```
 **注意：** 并不是`shared_ptr`不能进行 拷贝初始化，而是不能通过 内置指针 对 `shared_ptr` 进行拷贝初始化！
-### 4.3 混用 普通指针 和 智能指针有何风险？
+### 3.11 混用 普通指针 和 智能指针有何风险？
 来看下面这个函数：
 ```cpp
 // ptr 在函数被调用时 被创建并初始化
@@ -283,9 +289,36 @@ process(p); // 1. 通过p对形参ptr进行拷贝初始化，因此在函数里�
 
 int i = *p; // 正确: p的引用计数为1
 ```
-### 4.4 为什么推荐make_shared函数，而不是new运算符？
+**总结：**使用一个内置指针来访问一个智能指针所负责的对象是很危险的，因为我们无法知道对象何时被销毁。
+### 3.12 为什么推荐make_shared函数，而不是new运算符？
 &emsp;&emsp; 智能指针`shared_ptr`可以协调对象的析构，但这仅限于其自身的拷贝(指的是`shared_ptr`对象之间的拷贝)，使用 `make_shared`函数可以在 分配对象的同时 就将 `shared_ptr`与其绑定，从而避免了无意间将同一块内存绑定到了多个独立的`shared_ptr`上
-https://blog.csdn.net/coolmeme/article/details/43405155 TODO:
+### 3.13 `shared_ptr`的 get函数
+#### 3.13.1 get函数的作用？
+&emsp;&emsp;智能指针定义了一个`get`函数，它返回一个内置指针，指向智能指针管理的对象。
+#### 3.13.2 为什么要定义 get函数？
+&emsp;&emsp;这个函数时为了这样一种情况而设计的：我们需要向不能使用智能指针的代码传递一个内置指针
+#### 3.13.3 使用建议
+不&emsp;&emsp;要用get初始化另一个智能指针或为智能指针赋值，我们来看下面的代码：
+```cpp
+shared_ptr<int> p(new int(42)); // 智能指针p 的引用计数为 1
+int *q = p.get();               // 正确: 但要保证 q不会释放它指向的内存
+{   // 新的程序块
+    // 未定义: 两个独立的 shared_ptrs 指向了相同的内存
+    shared_ptr<int>r(q);
+} // 程序块结束, r被销毁，且它指向的内存也被delete
+int foo = *p; // undefined; the memory to which p points was f
+```
+在上面的代码中，当我们使用p时会发生未定义的行为，而且当p销毁时，这块内存会被第二次delete
+### 3.14 `shared_ptr`的 reset函数
+reset()函数有如下几个版本：
+```cpp
+p.reset()       // 若p是唯一指向其对象的 shared_ptr，则reset会释放该对象
+p.reset(q)      // 令 p 指向 内置指针q
+p.reset(q,d)    // 令 p 指向 内置指针q，使用d来释放q，而不是delete
+```
+**注意事项：**
+不能用get出来的指针reset另一个智能指针，道理和前面一样。
+
 
 
 
