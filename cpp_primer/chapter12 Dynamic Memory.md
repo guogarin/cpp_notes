@@ -150,24 +150,24 @@ shared_ptr<string>p1 = "Hello wordl";
 &emsp;&emsp;此时将执行默认初始化，里面是一个空指针。
 ### 3.3 shared_ptr支持的操作
 #### 3.3.1 和unique_ptr共有的操作
-操作 | 解释
----| ---
-`shared_ptr<T>sp` |	空智能指针，可以指向类型为T的对象
-`unique_ptr<T>up `|	
-`p	     `        |  将p当做 判断条件，若p指向了一个对象则返回`true`
-`*p	     `        |  解引用
-`p->mem	 `        |  等价于(*p).mem
-`p.get()	 `        |  返回p中保存的指针，此时应该小心，因为若智能指针释放了其对象，则p指向的对象也同样被释放了
-`swap(p,q)`        |	交换p和q中的指针
-`p.swap(q)`        |	交换p和q中的指针
+| 操作               | 解释                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `shared_ptr<T>sp`  | 空智能指针，可以指向类型为T的对象                                                        |
+| `unique_ptr<T>up ` |
+| `p	     `          | 将p当做 判断条件，若p指向了一个对象则返回`true`                                          |
+| `*p	     `         | 解引用                                                                                   |
+| `p->mem	 `         | 等价于(*p).mem                                                                           |
+| `p.get()	 `        | 返回p中保存的指针，此时应该小心，因为若智能指针释放了其对象，则p指向的对象也同样被释放了 |
+| `swap(p,q)`        | 交换p和q中的指针                                                                         |
+| `p.swap(q)`        | 交换p和q中的指针                                                                         |
 #### 3.3.2 shared_ptr独有的操作
-操作                 |解释
-----------------------| ---
-`make_shared<t>(args)`| 返回一个shared_ptr，指向一个动态分配的类型为T的对象，并使用args初始化该对象
-`shared_ptr<T>p(q)	 `| p是shared_ptr q的拷贝，此操作增加q中的计数器，q中的指针必须能转换为T*
-`p=q	                 `| p和q都是shared_ptr，所保存的指针必须能相互转换。此操作会递减p中的引用计数，递增q中的引用计数。若p中的引用计数变为0，则将其管理的内存释放
-`p.use_count()	 `    | 返回与p共享对象的智能指针数量，此操作可能很慢，平时主要用于调试。
-`p.unique()	     `    | 若p.use_count()为1，返回true;否则返回false
+| 操作                    | 解释                                                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `make_shared<t>(args)`  | 返回一个shared_ptr，指向一个动态分配的类型为T的对象，并使用args初始化该对象                                                              |
+| `shared_ptr<T>p(q)	 `   | p是shared_ptr q的拷贝，此操作增加q中的计数器，q中的指针必须能转换为T*                                                                    |
+| `p=q	                 ` | p和q都是shared_ptr，所保存的指针必须能相互转换。此操作会递减p中的引用计数，递增q中的引用计数。若p中的引用计数变为0，则将其管理的内存释放 |
+| `p.use_count()	 `       | 返回与p共享对象的智能指针数量，此操作可能很慢，平时主要用于调试。                                                                        |
+| `p.unique()	     `      | 若p.use_count()为1，返回true;否则返回false                                                                                               |
 #### 3.3.3 如何判断 指向string的智能指针p指向的值是否为空 比较安全？
 和常规指针一样，取值之前先判空：
 ```cpp
@@ -318,8 +318,145 @@ p.reset(q,d)    // 令 p 指向 内置指针q，使用d来释放q，而不是del
 ```
 **注意事项：**
 不能用get出来的指针reset另一个智能指针，道理和前面一样。
+## 3.15 动态内存 和 异常
+### 3.15.1 为什么说异常 时很可能导致内存泄露？
+```cpp
+void f()
+{
+    int *ip = new int(42); // dynamically allocate a new object
+    // 此处发生异常，而且未被捕获
+    delete ip; // 
+}
+```
+在上面的代码中，异常发生在 new 和 delete 之间，这就导致指针ip指向的动态内存 永远不可能被释放。
+### 3.15.2 如何保证 异常发生的时候 资源能被正常释放？
+#### (1) 捕获异常，在异常处理模块里将资源释放
+```cpp
+void f()
+{
+    try{
+        int *ip = new int(42); // dynamically allocate a new object
+        // 此处发生异常，而且未被捕获
+        delete ip;
+    }
+    catch(erro){
+        delete ip; // 
+    }
+}
+```
+#### (2) 使用智能指针
+```cpp
+void f()
+{
+    shared_ptr<int> sp(new int(42)); // allocate a new object
+    // 此处发生异常，而且未被捕获
+}   // 因为sp是智能指针，sp指向的动态内存将被自动释放
+```
+### 3.16 定义自己的释放操作
+#### 一般什么情况下需要定义自己的释放操作？
+&emsp;&emsp; 默认情况下，`shared_ptr`假定它正指向的是动态内存，当一个`shared_ptr`被销毁时，它默认的调用delete来对其进行释放。
+&emsp;&emsp; 因此如果你想用 `shared_ptr` 来帮你管理非动态内存，那你就要自己提供一个操作 来替代 默认的delete行为。
+&emsp;&emsp; 一个定义良好的C++类都应该定义了析构函数来负责清理对象使用的资源，但是有一些为 C和C++ 定义的类就不一定有析构函数了，比如 网络库，这个时候如果你想用`shared_ptr` 来帮你管理对象的话，那就应该 定义自己的操作 来替代delete释放资源。
+#### 3.16.2 下面的代码有什么问题？应该怎么解决？
+下面是C和C++都会使用的网络库，其中 `connection`类 没有析构函数
+```cpp
+struct destination;     // 表示正在连接什么
+struct connection;      // 使用连接所需的信息
+connection connect(destination*);   // 打开连接
+void disconnect(connection);        // 关闭连接
+void f(destination &d /* other parameters */)
+{
+    connection c = connect(&d);// 获取了一个连接
+    // 使用该连接
+}
+```
+**问题：**
+&emsp;&emsp; 因为 `connection`类 没有析构函数，而上面的函数`f()`并没有关闭该连接，而且在函数结束时没有关闭该连接，这就导致资源没有被释放。
+**解决：**
+可以自己定义释放操作，然后使用`shared_ptr`管理：
+```cpp
+void end_connection(connection *p)
+{
+    disconnect(*p);
+}
+```
+然后把 函数`f()` 改成：
+```cpp
+void f(destination &d /* other parameters */)
+{
+    connection c = connect(&d);// 获取了一个连接
+    shared_ptr<connection>p(&c, end_connection);
+    // 使用该连接
+}
+```
+这样即使 函数`f()` 不关闭连接，connection也会被正常关闭，当函数结束是，将自动调用 `end_connection`，接下来，`end_connection`会调用disconnect，从而确保连接被关闭。
+### 3.17 智能指针陷阱
+(1) 不使用相同的内置指针 初始化(或reset) 多个 智能指针
+(2) 不 delete get() 返回的指针
+(3) 不使用 get() 初始化或reset 另一个只能指针
+(4) 如果你使用 get() 返回的指针，记住当最后一个对应的智能指针被销毁后，你的只恨就变为无效了
+(5) 如果你使用只能指针管理的资源不是new分配的内存，记住传递一个删除器给它。
 
 
+
+&emsp;
+## 4. unique_ptr
+### 4.1 `unique_ptr` 和 `shared_ptr` 有何区别？
+&emsp;&emsp; 和`shared_ptr`不一样的是，在同一时刻只能允许有一个 `unique_ptr` 指向一个给定的对象
+### 4.2 有无 `std::make_unique`？
+&emsp;&emsp; 在C++11是没有的，`std::make_unique`是在C++14里加入标准库的
+### 4.3 如何新建 `unique_ptr`？
+鉴于在C++11没有`std::make_unique`函数，我们只能通过将其绑定到一个new返回的指针上，**类似于`shared_ptr`，初始化`unique_ptr`时也必须采用直接初始化的方式：**
+```cpp
+unique_ptr<double>p1; // 一个可以指向double的 unique_ptr
+unique_ptr<int>p2(new int(42));
+```
+### 4.4 unique_ptr的操作
+
+| 操作                     | 解释                                                          |
+| ------------------------ | ------------------------------------------------------------- |
+| `unique_ptr<T> u1      ` | 空unique_ptr，将使用delete释放资源                            |
+| `unique_ptr<T, D> u2   ` | 空unique_ptr，将使用 类型为D的可调用对象 来替代delete释放资源 |
+| `unique_ptr<T, D> u2(d)` | 空unique_ptr，将使用 类型为D的对象d 来替代delete释放资源      |
+| `u=nullptr             ` | 释放u指向的对象，并将u置空                                    |
+| `u.release()           ` | u释放对指针的控制权，返回指针，并jiangu置空                   |
+| `u.reset()             ` | 释放u指向的对象，并将u置空                                    |
+| `u.reset(q)            ` | 释放u指向的对象，并将u指向q                                   |
+| `u.reset(nullptr)      ` | 释放u指向的对象，并将u置空                                    |
+
+### 4.5 如何用 一个 unique_ptr 给 另一个unique_ptr赋值？
+&emsp;&emsp; 因为 `unique_ptr` 独占 其指向的对象，因此 `unique_ptr` 并不支持普通的拷贝或赋值：
+```cpp
+unique_ptr<string> p1(new string("Stegosaurus"));
+unique_ptr<string> p2(p1); // 错误:  unique_ptr 不支持拷贝，以这种方式拷贝是 shared_ptr的独有操作
+unique_ptr<string> p3;
+p3 = p2; // error:  unique_ptr不能赋值
+```
+虽然不能拷贝或赋值 `unique_ptr` ，但可以通过调用`realease` 或 `reset` 将指针的所有权从一个（非const） `unique_ptr` 转义给另一个 `unique_ptr` ：
+```cpp
+unique_ptr<string> p1(new string("Stegosaurus"));
+
+//这将导致指针的所有权从p1转到p2，执行过程如下
+//    1. p1.release()将使p1放弃对指针的控制权，并将其置空，然后返回 指针
+//    2. p1.release()返回的指针 对p2进行了直接初始化，
+unique_ptr<string>p2(p1.release());
+
+
+unique_ptr<string>p3(new string("Trex"));
+
+// p3的所有权将转到p2：
+//   1. p3.release()使p3放弃对指针的控制权，并将其置空，然后返回 指针
+//   2. p2.reset(返回的指针)导致 p2指向的资源被释放，然后将p2指向返回的指针
+p2.reset(p3.release());
+```
+
+### 4.
+### 4.
+### 4.
+
+
+## RAII
+、TODO:   https://zhuanlan.zhihu.com/p/34660259
 
 
 https://zhuanlan.zhihu.com/p/63488452
