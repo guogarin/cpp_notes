@@ -419,7 +419,7 @@ unique_ptr<int>p2(new int(42));
 | `unique_ptr<T, D> u2   ` | 空unique_ptr，将使用 类型为D的可调用对象 来替代delete释放资源 |
 | `unique_ptr<T, D> u2(d)` | 空unique_ptr，将使用 类型为D的对象d 来替代delete释放资源      |
 | `u=nullptr             ` | 释放u指向的对象，并将u置空                                    |
-| `u.release()           ` | u释放对指针的控制权，返回指针，并jiangu置空                   |
+| `u.release()           ` | u释放对指针的控制权，返回其保存的指针，然后将u置空            |
 | `u.reset()             ` | 释放u指向的对象，并将u置空                                    |
 | `u.reset(q)            ` | 释放u指向的对象，并将u指向q                                   |
 | `u.reset(nullptr)      ` | 释放u指向的对象，并将u置空                                    |
@@ -446,13 +446,70 @@ unique_ptr<string>p3(new string("Trex"));
 
 // p3的所有权将转到p2：
 //   1. p3.release()使p3放弃对指针的控制权，并将其置空，然后返回 指针
-//   2. p2.reset(返回的指针)导致 p2指向的资源被释放，然后将p2指向返回的指针
+//   2. p2.reset(返回的指针) 导致 p2指向的资源被释放，然后将p2指向第一步返回的指针
 p2.reset(p3.release());
 ```
+### 4.6 既然 `unique_ptr` 不能被复制和拷贝，我们如何返回一个 `unique_ptr`对象呢？
+&emsp;&emsp; 不能拷贝 `unique_ptr`对象 有一个例外：我们可以拷贝或赋值一个将要被销毁的`unique_ptr`，比如：
+(1) 直接从函数中返回一个`unique_ptr`：
+```cpp
+unique_ptr<int> clone(int p){
+    return unique_ptr<int>(new int(p));
+}
+```
+(2) 返回一个局部对象的拷贝：
+```cpp
+unique_ptr<int> clone(int p){
+    unique_ptr<int> ret (new int(p));
+    return ret;
+}
+```
+上面的两段代码都是正确的，因为编译器知道 返回的对象 即将被销毁，因此编译器将执行一种特殊的 "拷贝"，这将在13.6.2小节中介绍。
+### 4.7 如何给 `unique_ptr` 自定义 删除器？
+&emsp;&emsp; `unique_ptr`管理删除器的方式和`shared_ptr`有些不一样（原因见16.1.6节），
+&emsp;&emsp; 重载一个`unique_ptr`的删除器会影响到`unique_ptr`类型以及如何构造(或reset)该类型的对象，我们必须在尖括号中 `unique_ptr`指向类型之后 提供删除器的类型：
+```cpp
+unique_ptr<objT, delT> p (new objT, fcn);
+```
+下面我们用`unique_ptr`来重写前面的连接程序：
+```cpp
+void f(destination &d /*其它参数*/)
+{
+    connection c = connect(&d);
+    // decltype 返回函数类型，加上 * 之后就是函数指针了
+    unique_ptr<connection, decltype(end_connection)*> p(&c, end_connection);
+    // 使用连接
+    // 函数f 结束，connection将被正确关闭
+}
+```
 
-### 4.
-### 4.
-### 4.
+
+
+&emsp;
+## 5. weak_ptr
+### 5.1 weak_ptr 有何特点？
+&emsp;&emsp; `weak_ptr`是弱智能指针对象，它不控制所指向对象生存期的智能指针，它指向由一个`shared_ptr`管理的智能指针。将一个`weak_ptr`绑定到一个`shared_ptr`对象，不会改变`shared_ptr`的引用计数。一旦最后一个所指向对象的`shared_ptr`被销毁，所指向的对象就会被释放，即使此时有`weak_ptr`指向该对象，所指向的对象依然被释放。
+### 5.2 为什么要引入 weak_ptr ？
+&emsp;&emsp; 智能指针一个很重要的概念是“所有权”，所有权意味着当这个智能指针被销毁的时候，它指向的内存（或其它资源）也要一并销毁。这技术可以利用智能指针的生命周期，来自动地处理程序员自己分配的内存，避免显示地调用delete，是自动资源管理的一种重要实现方式。
+&emsp;&emsp; 为什么要引入“弱引用”指针呢？弱引用指针就是没有“所有权”的指针。有时候我只是想找个指向这块内存的指针，但我不想把这块内存的生命周期与这个指针关联。这种情况下，弱引用指针就代表“我指向这东西，但这东西什么时候释放不关我事儿……”
+&emsp;&emsp;  有些地方为了方便，直接用原始指针（raw pointer）来表示弱引用。然后用这种原始指针，其弱引用的含义不够明确，万一原始指针指向的动态内存被释放了，你再实用原始指针访问这块内存就危险了，而`weak_ptr`的访问是通过`lock()`此函数将检查`weak_ptr`指向的对象是否存在，如果存在则返回返回一个指向w的对象的`shared_ptr`，否则返回一个空指针，这就避免了访问被释放过的内存的可能。
+### 5.3 weak_ptr 的操作
+| Column A            | Column B                                                                       |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `weak_ptr<T> w    ` | 空weak_ptr                                                                     |
+| `weak_ptr<T> w(sp)` | 与 shared_ptr指针sp 指向相同对象 的 weak_ptr                                   |
+| `w = p            ` | p 可以是 shared_ptr 或 weak_ptr，赋值后w与p共享对象                            |
+| `w.reset()	      `  | 将当前 weak_ptr 指针置为空指针。                                               |
+| `w.use_count()	  `  | 查看指向和当前 weak_ptr 指针相同的 shared_ptr 指针的数量。                     |
+| `w.expired()	  `    | 如果`w.use_count()`为0，返回true，否则返回false                                |
+| `w.lock()	      `   | 如果`w.expired()`为true，返回一个空指针，否则返回一个指向w的对象的`shared_ptr` |
+### 5.4 如何通过 weak_ptr 访问对象？
+&emsp;&emsp; 由于对象可能不存在，因此我们不能使用`weak_ptr`直接访问对象，而必须使用`lock()`，此函数检查`weak_ptr`指向的对象是否存在，如果存在则返回返回一个指向w的对象的`shared_ptr`，否则返回一个空指针：
+```cpp
+if(shared<int> np = wp.lock()){ // 若 np不为空则条件成立
+    // do something here.
+}
+```
 
 
 ## RAII
