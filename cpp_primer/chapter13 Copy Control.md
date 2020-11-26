@@ -210,7 +210,157 @@ Sales_data::operator=(const Sales_data &rhs)
 ### 4.1 析构函数的作用是？
 &emsp;&emsp; 析构函数 执行和构造函数相反的操作：释放对象资源
 
-### 4.2 析构函数在什么时候被调用？
-&emsp;&emsp;
 
-### 4.3 如何定义 析构函数？
+
+### 4.2 析构函数 有何特点？
+名字由波浪线接类名构成；没有返回值，也不接受参数：
+```cpp
+class Foo {
+public:
+    ~Foo(); // destructor
+    // ...
+};
+```
+
+### 4.3 一个类能由几个析构函数？
+&emsp;&emsp; 只能有一个，因为析构函数不接受参数，所以它不能被重载，因此对于一个类来说，只会有一个析构函数。
+
+### 4.4 在析构函数中，成员的析构在什么时候？顺序是怎样的？
+&emsp;&emsp; 和构造函数相反，首先执行函数体，然后再销毁成员，而且成员按初始化的顺序的**逆序**销毁。
+
+### 4.5 析构函数在什么时候被调用？
+&emsp;**对析构函数可以先这么理解：“对象生命周期结束时自动调用的函数”**
+&emsp;无论何时一个对象被**销毁**，就会自动调用其析构函数：
+> &emsp;变量在离开其作用域时被销毁；
+> &emsp;容器（无论是标准库容器还是数组）被销毁时，其元素被销毁；
+> &emsp;对于动态分配的对象，当对 指向它的指针使用`delete`运算符时被销毁；
+> &emsp;对于临时对象，当创建它的完整表达式结束时被销毁；
+
+```cpp
+{   // 新作用域
+    // p 和 p2 指向动态分配的对象
+    Sales_data *p = new Sales_data;         // p 是内置指针
+    auto p2 = make_shared<Sales_data>();    // p2 是一个 shared_ptr
+    Sales_data item(*p);        // 拷贝构造函数 将*p拷贝到item
+    vector<Sales_data> vec; // 局部变量
+    vec.push_back(*p2);     // 拷贝p2指向的对象到vec
+    delete p;   // 对 p 指向的对象执行 析构函数
+}   // 退出局部作用域, 对item、p2、vec调用析构函数
+    // 若 p2 的引用计数变为 0, 则对象将被释放
+    // 销毁 vec 会销毁它里面的元素
+```
+在上面的代码中：
+&emsp;&emsp; 我们需要直接管理的只有指针`p`指向的是对象，因为它是 动态分配的Sales_data对象，因此在退出局部作用域前必须通过`delete`释放其内存，要不然就会造成内存泄露，但 `delete p` 这个语句是怎么释放对象的呢？ 对于对于动态分配的对象，当对 指向它的指针使用`delete`运算符时，该对象的类型的析构函数将被调用，然后释放该对象。
+继续来看下面的代码：
+&emsp;&emsp; 其余的对象 `item、p2、vec`都会在离开局部作用域后自动调用其析构函数进行，意味着在这些对象上会分别执行 `Sales_data`、`shared_ptr`、`vector`的析构函数。
+
+```cpp
+#include <iostream>
+ 
+using namespace std;
+ 
+class Line
+{
+   public:
+      void setLength( double len );
+      double getLength( void );
+      Line();   // 这是构造函数声明
+      ~Line();  // 这是析构函数声明
+ 
+   private:
+      double length;
+};
+ 
+// 成员函数定义，包括构造函数
+Line::Line(void)
+{
+    cout << "Object is being created" << endl;
+}
+Line::~Line(void)
+{
+    cout << "Object is being deleted" << endl;
+}
+ 
+void Line::setLength( double len )
+{
+    length = len;
+}
+ 
+double Line::getLength( void )
+{
+    return length;
+}
+// 程序的主函数
+int main( )
+{
+   Line line;
+ 
+   // 设置长度
+   line.setLength(6.0); 
+   cout << "Length of line : " << line.getLength() <<endl;
+ 
+   return 0;
+}
+```
+结果：
+> Object is being created
+> Length of line : 6
+> Object is being deleted
+
+### 4.6 下面的代码的运行原理是？
+```cpp
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+class B
+{
+public:
+    B(int a = 10, int b = 10, string s = "Hello World"): num(a), total(b), str(s) {}
+    ~B(){
+        cout << "I am the destructor of class B" << endl;
+    }   
+    
+    int num;
+    int total;
+    string str; 
+    
+};
+
+class D
+{
+public:
+    ~D() = default;
+    B m;
+};
+
+
+int main()
+{
+    D demo;
+    demo.~D();
+
+    cout << demo.m.num << endl << demo.m.total << endl << demo.m.str << endl;
+
+    return 0;
+}
+```
+结果：
+> I am the destructor of class B
+> 10
+> 10
+> Hello World
+> I am the destructor of class B
+
+#### &emsp; 4.6.1 为什么被析构后还能继续访问 类D 的成员 m？
+调用demo.~D()之后所有内存都释放掉了，后续的：
+        `cout << demo.m.num << endl << demo.m.total << endl << demo.m.str << endl;`
+虽然还能打印出结果，但实际上已经属于越界访问，是有问题的代码，是未定义行为。
+
+#### &emsp;4.6.2 为什么 B类 的析构函数被调用两次？
+&emsp;&emsp; 第一次 是显示调用，即`demo.~D();`
+&emsp;&emsp; 第二次 是编译器隐式调用，因为变量`demo`离开其作用域(main函数)后被销毁，编译器自动调用其析构函数。
+
+### 4.7 可以显示调用析构函数吗？
+&emsp;&emsp;不建议这么做，因为当对象离开其作用域时，编译器会隐式调用其析构函数，如果前面自己显示调用了的话，那么就是调用了两个析构函数，如果申请了堆内存(动态内存)，那么就是 对其进行了两次`delete`，后果很严重。
