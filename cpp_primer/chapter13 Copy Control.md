@@ -544,9 +544,9 @@ public:
 
 
 
-&emsp; 
+&emsp;
 ## 8. 拷贝控制 和 资源管理
-### 8.1 一般来说，定义类的拷贝语意有几种选择？
+### 8.1 一般来说，定义类的 拷贝语意 有几种选择？
 三种：
 ① 使类的行为看起来像 一个值：
 &emsp; &emsp; 当我们拷贝一个像值的对象时，副本和原对象 是完全独立的，改变副本不会影响原对象，反之亦然。比如 标准库容器和`string`类 的行为就像值。
@@ -555,4 +555,56 @@ public:
 ③ 使类的行为看起来 既不像值 也不像指针：
 &emsp; &emsp; 比如 `unique_ptr`和 IO类型 都不允许拷贝或赋值，因此 它们的行为 既不像值 也不像指针。
 
-### 8.2 
+### 8.2 定义一个类，名为`HasPtr`，它有一个`int`成员，和一个指向动态内存的`string`的指针成员，请分别给与它 不同的拷贝语义
+### 8.2.1 行为像值的类`HasPtr`
+&emsp;&emsp; 为了给类提供 值 的行为，那对于类管理的资源，每个对象都应该有一份自己的拷贝：
+> ① 定义一个 拷贝构造函数 ，它完成`string*`指向内存里的内容的拷贝，而不是简单的拷贝指针；
+> ② 合成析构函数并不会帮忙`delete`动态内存，因此需要自己定义一个析构函数来完成动态内存的释放；
+> ③ 拷贝赋值运算符 通常组合了析构函数和构造函数的操作：
+> &emsp; 析构操作： 析构`=`左侧的对象，
+> &emsp; 构造操作： 从右侧拷贝数据到左侧对象
+> 因此我们需要自定义一个 拷贝赋值运算符，它先来释放左侧对象的动态内存，然后从右侧对象拷贝数据。
+```cpp
+class HasPtr {
+public:
+    // 所有参数都有默认值，因此是个默认构造函数
+    HasPtr(const std::string &s=std::string()): i(0), ps(new std::string(s)), { }
+
+    HasPtr(const HasPtr&p): i(p.i), ps(new std::string(p.ps)), { }
+    HasPtr& operator=(const HasPtr&);
+    ~HasPtr(){delete ps; }
+private:
+    int i;
+    std::string * ps;
+};
+```
+####  8.2.1.1 下面`HasPtr`类的 拷贝赋值运算符的定义 正确吗？
+```cpp
+HasPtr& HasPtr::operator=(const HasPtr&rhs)
+{
+    delete ps;  // 释放 =左侧 的动态内存，避免内存泄漏
+    ps = new std::string(*rhs.ps);  
+    i = rhs.i;
+    return *this; // 返回本对象，然后对象绑定到了引用上
+}
+```
+不正确，上面`HasPtr`类的定义乍一看好像完全没有问题，但我们来看下面的代码：
+```cpp
+HasPtr demo("Hello World");
+demo = demo;
+```
+在上面的代码中，我们将`demo`对象赋给了它自身，看起来好像没有问题，但上面定义的 拷贝赋值运算符 先执行了`delete ps`，这就意味着后面的 `ps = new std::string(*rhs.ps)`的行为是未定义的，因为我们已经在第一步就释放了动态内存，**也就是说上面的 拷贝赋值运算符 不能处理 将一个对象赋予他自身的情况。**
+####  8.2.1.2 如何解决呢？
+可以用一个临时变量先将其保存下来，然后`delete`，最后将临时对象赋予 左侧对象：
+```cpp
+HasPtr& HasPtr::operator=(const HasPtr&rhs)
+{
+    std::string *tmp =  new std::string(*rhs.ps);
+    delete ps;  // 释放 =左侧 的动态内存，避免内存泄漏
+    ps = tmp;  // 将临时对象赋给它
+    i = rhs.i;
+    return *this; // 返回本对象，然后对象绑定到了引用上
+}
+```
+### 8.2.2 行为像指针的类`HasPtr`
+&emsp;&emsp; 
