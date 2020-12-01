@@ -613,3 +613,139 @@ HasPtr& HasPtr::operator=(const HasPtr&rhs)
 &emsp;&emsp; 为了给类提供 指针 的行为，
 > ① 我们要为其定义拷贝构造函数和拷贝赋值运算符，用来拷贝成员本身；
 > ② 我们还需要定义析构函数来释放内存，但不能简单的释放内存，而是要使用引用计数，只有当最后一个指向string的HasPtr销毁时，它才可以释放string。
+
+#### 8.2.2.1 如何实现引用计数？
+&emsp;&emsp; 如何保证所有指向相同资源的对象 共享同一 计数器 呢？比如对于下面的代码：
+```cpp
+HasPtr p1("Hello World");
+HasPtr p2(p1);
+HasPtr P3(p1);
+```
+在上面的代码中，`p1、p2、p3`都指向相同的资源，但问题是在我们创建`p3`的时候我们如何递增p2的计数器呢？**解决这个问题的办法是**： 我们可以将计数器放在 动态内存中，在拷贝或赋值的时候，我们只拷贝指向计数器的指针，这样副本和原对象都会指向相同的计数器。
+#### 8.2.2.2 拷贝控制成员、构造函数 怎么操作引用计数？
+| 函数                         | 需要承担的工作                     |
+| ---------------------------- | ----------------------------------- |
+| 构造函数(除了拷贝构造函数) | ① 初始化对象；②创建一个引用计数，用来记录有多少个对象与正在创建的对象共享相同的资源，这个引用计数应该被初始化为1 |
+| 拷贝构造函数                 | 不分配计数器，而是拷贝给定对象的数据成员，在拷贝计数器时只拷贝指针，并将计数器加1，这样就能做到和给定对象共享同一计数器。                 |
+| 析构函数                     | 递减计数器，并在计数器变为0的时候释放资源。                     |
+| 拷贝赋值运算符               | ① 递增`=`左侧对象的引用计数； ②递减`=`右侧对象的引用计数，并在其引用计数为0的时候释放资源                                                     |
+#### 8.2.2.3 类的定义
+```cpp
+class HasPtr {
+public:
+    HasPtr(const string s = string()): ps(new string(s)), i(0), use(1) { }
+    HasPtr(const HasPtr &p): ps(p.ps), i(p.i), use(p.use) { ++*use; }
+    HasPtr& operator=(const HasPtr &);
+    ~HasPtr();
+private:
+    string * ps;
+    int i;
+    size_t * use;
+}
+```
+**析构函数：**
+&emsp;&emsp; 对于析构函数，行为像指针的类就不能无条件释放资源了，而是应该先递减引用计数，然后只有在 引用计数变为0 的时候才释放资源：
+```cpp
+HasPtr::~HasPtr()
+{
+    if(--*use == 0){
+        delete ps;
+        delete use;
+    }
+}
+```
+**拷贝赋值运算符：**
+&emsp;&emsp; 对于拷贝赋值运算符，我们首先要保证 自赋值 可以正常处理，在这里我可以通过 先递增`=`右侧对象的引用计数来做到
+```cpp
+HasPtr& HasPtr::operator=(const HasPtr &rhs)
+{
+    ++*rhs.use;
+    // 如果是自赋值，因为前面 ++*rhs.use 已经将引用计数加1了，所以自赋值时肯定走不到下面这个 if分支
+    if(--*use == 0){
+        delete ps;
+        delete use;
+    }
+    i = rhs.i;
+    ps = rhs.ps;
+    use = rhs.use;
+    return *this;
+}
+```
+
+
+
+
+
+
+&emsp;
+## 9. 交换操作
+### 9.1 什么情况下 要为自己的类定义 交换操作？
+&emsp;&emsp; 对于那些和 标准库中的重排元素顺序的算法 一起使用的类，为其定义`swap()`是非常重要的，因为这些排序算法 在交换两个元素的顺序时 会用到`swap()`。
+&emsp;&emsp; 假如类没有定义`swap()`，那么算法将使用 标准库定义的`swap()`；如果类定义了`swap()`，那么算法将使用 自定义的`swap()`；
+
+### 9.2 交换操作 是必须的吗？
+&emsp;&emsp; 和拷贝控制成员不一样，交换操作 并不是必要的，而是**作为一种优化手段**。
+
+### 9.3 为上面的 类值版本的`HasPtr` 定义一个`swap()`
+类定义如下：
+```cpp
+class HasPtr {
+public:
+    // 所有参数都有默认值，因此是个默认构造函数
+    HasPtr(const std::string &s=std::string()): i(0), ps(new std::string(s)), { }
+
+    HasPtr(const HasPtr&p): i(p.i), ps(new std::string(p.ps)), { }
+    HasPtr& operator=(const HasPtr&);
+    ~HasPtr(){delete ps; }
+private:
+    int i;
+    std::string * ps;
+};
+
+HasPtr& HasPtr::operator=(const HasPtr&rhs)
+{
+    std::string *tmp =  new std::string(*rhs.ps);
+    delete ps;  // 释放 =左侧 的动态内存，避免内存泄漏
+    ps = tmp;  // 将临时对象赋给它
+    i = rhs.i;
+    return *this; // 返回本对象，然后对象绑定到了引用上
+}
+```
+#### 9.3.1 使用 拷贝控制成员 实现 `swap()`
+```cpp
+swap(HasPtr &lhs, HasPtr &rhs)
+{
+    HasPtr tmp = lhs;   // 使用了 HasPtr的 拷贝构造函数
+    lhs = rhs;          // 使用了 HasPtr的 拷贝赋值运算符
+    rhs = tmp;          // 使用了 HasPtr的 拷贝赋值运算符
+}
+```
+#### 9.3.2 改进的版本1
+&emsp;上面的代码完全没问题，但是效率并不是很高：它将`lhs`中的`string`拷贝了两次：
+&emsp;&emsp; 第一次：`HasPtr tmp = lhs;`
+&emsp;&emsp; 第二次：`rhs = tmp;`
+而且拷贝一个类值的`HasPtr`会分配一个新的string并将其拷贝到`HasPtr`指向的位置，而理论上这些内存分配都是可以避免的：
+```cpp
+class HasPtr {
+friend void swap(HasPtr &, HasPtr &);
+public:
+    /*
+        公有成员
+    */
+private:
+    /*
+        私有成员
+    */
+};
+
+inline
+void swap(HasPtr &rhs, HasPtr &lhs)
+{
+    /*string * tmp = rhs.ps;.TODO:
+    rhs.ps = lhs.ps;
+    lhs.ps = tmp;*/
+    using std::swap;
+    swap(rhs.ps, lhs.ps)
+    swap(rhs.i, lhs.i);
+}
+```
