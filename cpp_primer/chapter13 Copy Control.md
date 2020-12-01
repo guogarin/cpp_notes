@@ -720,7 +720,7 @@ swap(HasPtr &lhs, HasPtr &rhs)
     rhs = tmp;          // 使用了 HasPtr的 拷贝赋值运算符
 }
 ```
-#### 9.3.2 改进的版本1
+#### 9.3.2 改进的版本
 &emsp;上面的代码完全没问题，但是效率并不是很高：它将`lhs`中的`string`拷贝了两次：
 &emsp;&emsp; 第一次：`HasPtr tmp = lhs;`
 &emsp;&emsp; 第二次：`rhs = tmp;`
@@ -741,11 +741,67 @@ private:
 inline
 void swap(HasPtr &rhs, HasPtr &lhs)
 {
-    /*string * tmp = rhs.ps;.TODO:
-    rhs.ps = lhs.ps;
-    lhs.ps = tmp;*/
     using std::swap;
-    swap(rhs.ps, lhs.ps)
+    swap(rhs.ps, lhs.ps);
     swap(rhs.i, lhs.i);
 }
 ```
+
+### 9.4 调用 `swap`时需要注意什么？
+&emsp;&emsp; 每个swap调用都应该是未加限定的，也就是说在调用`swap函数`时 我们应该使用`using std::swap`，而不是通过在前面加上 `std::`来强制指定 swap的版本。下面我们实例来解释一下这句话：
+```cpp
+inline
+void swap(HasPtr &rhs, HasPtr &lhs)
+{
+    std::swap(rhs.ps, lhs.ps) // 强制使用 标准库版本的swap
+    std::swap(rhs.i, lhs.i);
+}
+```
+而是应该使用`using std::swap`：
+```cpp
+inline
+void swap(HasPtr &rhs, HasPtr &lhs)
+{
+    using std::swap;
+    swap(rhs.ps, lhs.ps);
+    swap(rhs.i, lhs.i);
+}
+```
+上面两个`HasPtr`类的实现好像都一样，因为交换的是 指针和`int`，而他们都是内置类型，内置类型是没有自己的`swap`操作的，肯定会使用`std::swap`，不过这两个实现的效果是一样的，但下面这个就不一样了：
+```cpp
+class Foo {
+friend void swap(Foo &, Foo &);
+public:
+    /* 省略...*/
+private:
+    HasPtr hp;
+    /* 省略...*/
+};
+```
+上面的代码中，我们定义了`Foo类`，它含有一个`HasPtr类型`的成员，下面我们来为`Foo类`提供`swap`操作的定义：
+```cpp
+void swap(Foo &rhs, Foo &lhs)
+{
+    std::swap(rhs.hp, lhs.hp); // 使用的是 标准库版本的swap
+    /* 交换其它成员 */
+}
+```
+#### 9.4.1 上面的代码有什么问题？
+&emsp;&emsp; 在上面`swap`操作的定义中，我们直使用的是 标准库版本的swap，而不是`HasPtr类`自己的swap函数，`std::swap(rhs, lhs)`这个语句以及直接指定了swap的版本。
+&emsp;&emsp; 其实也是说这样会编译不过，只不过这样做就浪费了我们之前为`HasPtr类`定义的swap函数
+### 9.4.2 正确的做法是怎样的？
+&emsp;&emsp; 使用using命令：
+```cpp
+void swap(Foo &rhs, Foo &lhs)
+{
+    using std::swap;
+    swap(rhs.hp, lhs.hp); // 使用的是 标准库版本的swap
+    /* 交换其它成员 */
+}
+```
+**上面的代码是怎么运行的？**
+&emsp;&emsp; 虽然我们在前面使用了`using std::swap;`，但`swap(rhs.hp, lhs.hp);`使用的是 `HasPtr类`自己的swap函数，而不是`std::swap;`，因为如果存在类型特定的`swap`版本，其匹配程度会优于`std:`中的版本(具体原因要在 16.3节(P616)才能讲到)。还有一个问题就是``using std::swap;`为什么没有隐藏 `HasPtr类`自己的swap函数，起哄原因要在 18.2.3节(P706)才能讲到。
+### 9.4.3 总结
+&emsp;&emsp; 也就是说我们不应该直接指定用哪个版本的swap函数，而是应该交给编译器决定，它会优先匹配我们自己定义的 swap函数(如果有的话)，然后才是标准库的swap函数(即`std::swap`)
+
+## 9.5 如何在赋值运算符中使用`swap`？
