@@ -805,3 +805,14 @@ void swap(Foo &rhs, Foo &lhs)
 &emsp;&emsp; 也就是说我们不应该直接指定用哪个版本的swap函数，而是应该交给编译器决定，它会优先匹配我们自己定义的 swap函数(如果有的话)，然后才是标准库的swap函数(即`std::swap`)
 
 ## 9.5 如何在赋值运算符中使用`swap`？
+代码如下：
+```cpp
+HasPtr & operator=(HasPtr rhs)
+{
+    swap(*this, rhs);
+    return *this;
+}
+```
+注意： `rhs`参数不是引用，我们将`=`右侧运算对象以传值的方式传递给了赋值运算符，因此`rhs`是右侧对象的一个副本。
+## 9.5.1 使用`swap` 定义 在赋值运算 有什么优点？
+&emsp;&emsp; 自动处理了自赋值的情况，因为`rhs`是右侧对象的一个副本；
