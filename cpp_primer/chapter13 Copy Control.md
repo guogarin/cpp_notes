@@ -816,3 +816,126 @@ HasPtr & operator=(HasPtr rhs)
 注意： `rhs`参数不是引用，我们将`=`右侧运算对象以传值的方式传递给了赋值运算符，因此`rhs`是右侧对象的一个副本。
 ## 9.5.1 使用`swap` 定义 在赋值运算 有什么优点？
 &emsp;&emsp; 自动处理了自赋值的情况，因为`rhs`是右侧对象的一个副本；
+
+
+
+
+
+
+## 10. 拷贝控制成员 的其它用途
+### 10.1 定义 拷贝控制成员 有哪些原因？
+(1) 资源管理，这是最主要的原因；
+(2) 用来实现 登记功能
+
+### 10.2 设计一个`Message`类和`Folder`类，它要完成下列功能：
+&emsp;&emsp; `Message`类和`Folder`类 分别表示 电子邮件消息 和 消息目录，每个 Message对象 可以出现在多个Folder中，但是任意给定的 Message 只能有一个副本，这样一条Message被改变，则从它所在的每一个Folder中都能看到变更后的内容。
+### 10.2.1 各个函数怎么设计？
+函数 | 需具备的功能 | 
+---------|----------|
+ save() | 向给定folder中添加Message |
+ remove() | 向给定folder中删除Message |
+ 拷贝构造函数 | 新构造的对象 应该和 给定的对象 相独立，但是出现在相同的folder中 |
+ 拷贝赋值运算符| 和往常一样，拷贝赋值运算符 也要执行释放资源的操作(从包含左侧对象的folder删除该message对象，而且要能处理自赋值 | 
+ 析构函数 | 从每个包含该Message对象的folder中删除该对象 |
+&emsp;我们可以看到：
+&emsp;&emsp; ① 拷贝构造函数 和 拷贝赋值运算符 都要将message对象添加到 一组folder中；
+&emsp;&emsp; ② 析构函数 和 拷贝赋值运算符 都要将从 一组folder中 删除message对象；
+那我们可以分别为 将message对象添加到 一组folder中 和 从一组folder中删除message对象 写一个函数来实现代码重用，但我们应该将这两个函数实现为`private`，这样安全一点。
+&emsp;&emsp; 另外，`Message`类 和 `Folder`类 应该互为友元，这样才能做到 互相使用对方的私有成员。
+### 10.2.2 如何处理自赋值？
+&emsp;&emsp; 先从包含 左侧对象 的folder中 删除它，这样就能处理自赋值了
+```cpp
+class Message {
+    friend class Folder; // 将 Folder声明为友元类，这样该类的成员就能访问 Message类的私有成员了。
+public:
+    // 注意， 这是个默认构造函数！因为 该构造函数中 所有形参都有默认值。
+    explicit Message(const string &str = ""): contents(str) { }
+    Message(const Message &);
+    Message& operator=(const Message&);
+    ~Message();
+    void save(Folder &);
+    void remove(Folder &);
+private:
+    string contents;
+    set<Folder*>folders;
+    void add_to_folders(const Message&);
+    void remove_from_folders();
+};
+
+void Message::save(Folder &f)
+{
+    folders.add(&f);
+    Folder.addMsg(*this);
+}
+
+void Message::remove(Folder &)
+{
+    folders.erase(&f);
+    Folder.remMsg(*this);
+}
+
+void Message::add_to_folders(const Message&m)
+{
+    for(auto f : m.folders) // 这里的 范围for循环中 f不需要声明为引用，因为我们不需要改变 m.folders 的值
+        f->addMsg(this); // 注意，添加的是指针。
+}
+
+// 注意这个拷贝构造函数的写法！
+Message::Message(const Message &m):contents(m.contents), folders(m.folders)
+{
+    add_to_folders(m);
+}
+
+void Message::remove_from_folders()
+{
+    for(f : m.folders)
+        f->remMsg(this);
+}
+
+Message::~Message()
+{
+    remove_from_folders();
+}
+
+// 和往常一样，拷贝赋值运算符 也要执行释放资源的操作，而且要能处理自赋值。
+Message& Message::operator=(const Message &rhs)
+{
+    remove_from_folders(); // 先从包含 左侧对象 的folder中 删除它，这样就能处理自赋值了
+    contents = rhs.contents;
+    folders = rhs.folders;
+    add_to_folders(rhs);
+    return *this;
+}
+```
+### 10.2.3 如何为 `Message类` 定义 swap操作？
+(1) 先将包含 两个Message的folder将其删除
+(2) 开始交换（`Message类`的包含的string成员和set成员都有自己的swap版本）
+(3) 将 Message对象 添加到 包含它们的folder中
+```cpp
+void swap(Message &lhs, Message &rhs)
+{
+    using std::swap; // 这里其实可有可无，但是每次都加上总没错
+    // 先将包含 两个Message的folder将其删除
+    for(auto f : lhs.folders)
+        f->remMsg(&lhs);
+    for(auto f : rhs.folders)
+        f->remMsg(&rhs);
+
+    swap(lhs.contents, rhs.contents);
+    swap(lhs.folders, rhs.folders);
+
+    for(auto f : lhs.folders)
+        f->addMsg(&lhs);
+    for(auto f : rhs.folders)
+        f->addMsg(&rhs);
+}
+
+```
+?TODO: `folder类还没定义，答案在习题册里面有，做习题的时候记得加上
+
+
+
+
+
+
+## 11. 
