@@ -86,7 +86,8 @@ pair<string, size_t> word_count;
 #### 不给pair类型指定初始值时会发生什么？
 &emsp;&emsp;pair将使用默认初始化，即调用pair的默认构造函数进行初始化，但pair的默认构造函数将对数据成员进行值初始化。
 #### pair类型 有哪些数据成员？
-first 和 second成员。比如对于`pair<string, string> anon{"Micheal", "Jordan"};`来说，`anon.first` 就是 "Micheal"，`anon.second` 就是 "Jordan"
+&emsp;&emsp; `first` 和 `second` 成员。
+&emsp;&emsp; 比如对于`pair<string, string> anon{"Micheal", "Jordan"};`来说，`anon.first` 就是 "Micheal"，`anon.second` 就是 "Jordan"
 #### pair类型 和其它 关联容器有何 关联？
 &emsp;&emsp; map的元素是pair类型的。
 #### make_pair()的作用是？原理是？

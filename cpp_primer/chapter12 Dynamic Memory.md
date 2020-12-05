@@ -713,11 +713,11 @@ for(int i = 0; i < 10; ++i)
 &emsp;&emsp; 但我们**在分配一大块内存时**，我们通常会希望在这块内存上按需构造对象，也就是说希望将 内存分配 和 对象的构造 分离，这意味着我们可以分配大块内存，但只有在真正需要的时候才执行对象创建构造。
 我们来看下面的代码：
 ```cpp
-string *const p = new string[n]; // 构造 n个 空string
+string *const p = new string[n]; // 构造 n个 空string(第一次赋值：n个string对象都被默认初始化为空string)
 string s;
 string *q = p; // q 指向第一个 string
 while (cin >> s && q != p + n)
-    *q++ = s; // 从标准输入读取数据来赋予 *q 一个新值
+    *q++ = s; // 第二次赋值：从标准输入读取数据来赋予 *q 一个新值
 const size_t size = q - p; // 记录读取的string总个数
 // 此处使用数字
 delete[] p; // 释放
@@ -727,7 +727,7 @@ delete[] p; // 释放
 > ② p指向的元素都被赋值了两次，第一次时用new构造时执行的默认初始化，第二次是while循环内的赋值
 
 &emsp;&emsp; 如果我们可以做到将 内存分配 和 对象的构造 分离，那上面两个问题能得到解决，但我们都知道 new运算符 在分配大块内存时将 内存的分配 和 对象的构造 组合在了一起，因此我们需要一个方法可以实现 在分配一大块内存时将 内存分配 和 对象的构造 分离，而allocator类就可以做到这一点。
-&emsp;&emsp; 还有很重要的一点，使用new动态分配数组时，需要依赖 默认构造函数，万一类没有定义默认构造函数的话，这就意味着这个类不能动态分配数组。
+&emsp;&emsp; **还有很重要的一点**： 使用new动态分配数组时，需要依赖 默认构造函数，万一类没有定义默认构造函数的话，这就意味着这个类不能动态分配数组。
 **总结：** alocator类可以做到 在分配一大块内存时将 内存分配 和 对象的构造 分离。
 ### 7.2 allocator类 是用什么实现的？
 &emsp;&emsp;和vector一样，是通过模板实现的。
@@ -756,7 +756,7 @@ auto const p = alloc.allocate(n);
 ```
 (3) 构造元素
 &emsp;&emsp; 用 `allocate`分配的内存是未构造的，需要通过`construct()`成员函数来在分配的内存中构造对象。
-&emsp;&emsp; construct()`成员函数接收 一个指针 和 零个或多个额外参数，用力啊在给定位置构造一个元素，这些额外参数必须是与构造对象的类型相匹配的合法的初始化器。
+&emsp;&emsp; `construct()`成员函数接收 一个指针 和 零个或多个额外参数，用力啊在给定位置构造一个元素，这些额外参数必须是与构造对象的类型相匹配的合法的初始化器。
 (4) 销毁元素
 &emsp;&emsp; 销毁p指向的对象，但是不会释放空间，也就意味着，这段空间依然可以使用。
 (5) 释放内存
@@ -784,7 +784,7 @@ int main ()
         cout << size << " : " << *(p + size) << endl;
     
     // (4) 销毁元素
-    while(p != q)
+    while(p != q) // 注意，这里是挨个销毁
         alloc.destroy(--q); 
     
     // destroy后的对象还能重用
@@ -821,7 +821,7 @@ allocator<string> alloc;
 auto p = alloc.allocate(vi.size() * 2);
 
 // 通过拷贝vi中的元素来构造从p开始的元素
-// q的值为： p+vi.size()
+// q的值为： p+vi.size()，即q指向 最后一个元素后面的位置。
 auto q = uninitialized_copy(vi.begin(), vi.end(), p);
 
 // 将剩余的元素初始化为42

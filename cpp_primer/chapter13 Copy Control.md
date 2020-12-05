@@ -21,6 +21,7 @@
 
 
 &emsp;
+&emsp;
 ## 2. 拷贝构造函数
 ### 2.1 拷贝构造函数 在什么时候被调用？
 &emsp;&emsp; 当用同类型的一个对象 **初始化** 另一个对象时（注意是初始化哦）
@@ -124,6 +125,7 @@ f(vector<int>(10));     // ok: directly construct a temporary vector from an int
 
 
 &emsp;
+&emsp;
 ## 3. 拷贝赋值运算符
 ### 3.1 拷贝赋值运算符 在什么时候被调用？
 &emsp;&emsp; 将一个对象 赋予 同类型的另一个对象时（注意是赋值哦）
@@ -209,6 +211,9 @@ Sales_data::operator=(const Sales_data &rhs)
 
 
 
+
+
+&emsp;
 &emsp;
 ## 4. 析构函数
 ### 4.1 析构函数的作用是？
@@ -379,6 +384,7 @@ int main()
 
 
 &emsp;
+&emsp;
 ## 5. 三五法则
 ### 5.1 为什么叫三五法则？
 &emsp;&emsp; 由于拷贝控制操作是由三个特殊的成员函数来完成的，所以我们称此为“C++三法则”。在较新的 C++11 标准中，为了支持移动语义，又增加了移动构造函数和移动赋值运算符，这样共有五个特殊的成员函数，所以又称为“C++五法则”。
@@ -423,6 +429,7 @@ HasPtr f(HasPtr hp)
 
 
 
+&emsp;
 &emsp; 
 ## 6. 显示要求编译器生成合成版本的 拷贝控制成员
 ### 6.1 如何 显示要求编译器生成合成版本的 拷贝控制成员？
@@ -459,6 +466,8 @@ Sales_data& Sales_data::operator=(const Sales_data &) = default;
 
 
 
+
+&emsp;
 &emsp; 
 ## 7. 阻止拷贝
 ### 7.1 为什么要阻止拷贝？
@@ -547,6 +556,7 @@ public:
 
 
 
+&emsp;
 &emsp;
 ## 8. 拷贝控制 和 资源管理
 ### 8.1 一般来说，定义类的 拷贝语意 有几种选择？
@@ -678,6 +688,7 @@ HasPtr& HasPtr::operator=(const HasPtr &rhs)
 
 
 &emsp;
+&emsp;
 ## 9. 交换操作
 ### 9.1 什么情况下 要为自己的类定义 交换操作？
 &emsp;&emsp; 对于那些和 标准库中的重排元素顺序的算法 一起使用的类，为其定义`swap()`是非常重要的，因为这些排序算法 在交换两个元素的顺序时 会用到`swap()`。
@@ -789,7 +800,7 @@ void swap(Foo &rhs, Foo &lhs)
 #### 9.4.1 上面的代码有什么问题？
 &emsp;&emsp; 在上面`swap`操作的定义中，我们直使用的是 标准库版本的swap，而不是`HasPtr类`自己的swap函数，`std::swap(rhs, lhs)`这个语句以及直接指定了swap的版本。
 &emsp;&emsp; 其实也是说这样会编译不过，只不过这样做就浪费了我们之前为`HasPtr类`定义的swap函数
-### 9.4.2 正确的做法是怎样的？
+#### 9.4.2 正确的做法是怎样的？
 &emsp;&emsp; 使用using命令：
 ```cpp
 void swap(Foo &rhs, Foo &lhs)
@@ -801,10 +812,10 @@ void swap(Foo &rhs, Foo &lhs)
 ```
 **上面的代码是怎么运行的？**
 &emsp;&emsp; 虽然我们在前面使用了`using std::swap;`，但`swap(rhs.hp, lhs.hp);`使用的是 `HasPtr类`自己的swap函数，而不是`std::swap;`，因为如果存在类型特定的`swap`版本，其匹配程度会优于`std:`中的版本(具体原因要在 16.3节(P616)才能讲到)。还有一个问题就是``using std::swap;`为什么没有隐藏 `HasPtr类`自己的swap函数，起哄原因要在 18.2.3节(P706)才能讲到。
-### 9.4.3 总结
+#### 9.4.3 总结
 &emsp;&emsp; 也就是说我们不应该直接指定用哪个版本的swap函数，而是应该交给编译器决定，它会优先匹配我们自己定义的 swap函数(如果有的话)，然后才是标准库的swap函数(即`std::swap`)
 
-## 9.5 如何在赋值运算符中使用`swap`？
+### 9.5 如何在赋值运算符中使用`swap`？
 代码如下：
 ```cpp
 HasPtr & operator=(HasPtr rhs)
@@ -814,7 +825,7 @@ HasPtr & operator=(HasPtr rhs)
 }
 ```
 注意： `rhs`参数不是引用，我们将`=`右侧运算对象以传值的方式传递给了赋值运算符，因此`rhs`是右侧对象的一个副本。
-## 9.5.1 使用`swap` 定义 在赋值运算 有什么优点？
+## 9.5.1 使用`swap` 定义 拷贝赋值运算符 有什么优点？
 &emsp;&emsp; 自动处理了自赋值的情况，因为`rhs`是右侧对象的一个副本；
 
 
@@ -822,6 +833,8 @@ HasPtr & operator=(HasPtr rhs)
 
 
 
+&emsp;
+&emsp;
 ## 10. 拷贝控制成员 的其它用途
 ### 10.1 定义 拷贝控制成员 有哪些原因？
 (1) 资源管理，这是最主要的原因；
@@ -906,7 +919,7 @@ Message& Message::operator=(const Message &rhs)
     add_to_folders(rhs);
     return *this;
 }
-```
+``` 
 ### 10.2.3 如何为 `Message类` 定义 swap操作？
 (1) 先将包含 两个Message的folder将其删除
 (2) 开始交换（`Message类`的包含的string成员和set成员都有自己的swap版本）
@@ -931,11 +944,95 @@ void swap(Message &lhs, Message &rhs)
 }
 
 ```
-?TODO: `folder类还没定义，答案在习题册里面有，做习题的时候记得加上
+?TODO: `folder类`还没定义，答案在习题册里面有，做习题的时候记得加上
 
 
 
 
 
 
+&emsp;
+&emsp;
 ## 11. 
+```cpp
+class StrVec{
+public:
+    StrVec():{} elements(nullptr), elements(nullptr), cap(nullptr)  { }
+    StrVec(const StrVec &);
+    StrVec& operator=(const StrVec&);
+    ~StrVec();
+
+    // 对于不改变调用对象的函数，应该声明为 const成员函数
+    size_t size() const { return first_free - elements;}
+    size_t capacity() const { return cap - elements ;} 
+    string * begin() const {return elements;}
+    string * end() const {return first_free;}
+    void push_back(const string *);
+private:
+    string * elements;
+    string * first_free;
+    string * cap;
+    static allocator<string> alloc;
+    void check_n_alloc(){ if(capacity() == size()) reallocate(); }
+    void reallocate();
+    void free();
+    pair<string*, string*> alloc_n_copy(const string *, const string *);
+};
+```
+### 为什么`alloc`要被声明为`static变量`？
+
+### const成员函数
+
+### `push_back()`的实现
+`push_back()`的实现需要保证以下方面：
+> 确保有空间可插入：这里用已在类内实现的`check_n_alloc()`函数即可；
+> 因为我们使用的是`allocator类`，因此目标内存是未构造的，我们需要用`alloc.construct`进行构造。
+```cpp
+void StrVec:: push_back(const string *str)
+{
+    // 插入之前先确保有空间可插入
+    check_n_alloc();
+    // first_free++ ：先在first_free指向的位置构造元素，然后递增first_free指针让它指向下一个位置。
+    alloc.construct(first_free++, str);
+}
+```
+### `alloc_n_copy()`的实现
+&emsp;&emsp; 此函数只会在 拷贝构造函数 和 拷贝赋值运算符 中使用，此时还没调用`alloc.allocate()`分配内存，因此需要在`alloc_n_copy()`内部先请求分配足够的内存 再从原对象中拷贝。
+```cpp
+pair<string*, string*> StrVec::alloc_n_copy(const string *s, const string *e)
+{
+    auto data = alloc.allocate(e - s);
+    auto end = uninitialized_copy(s, e, data); // end指向的是 最后一个元素的后面
+    return {data, end};
+}
+```
+### `free()`的实现
+`free()`的任务是释放内存，因为内存是通过`allocator类`分配的，因此`free()`有两个工作：
+> ① `destroy()`所有的元素
+> ① `deallocate()`分配的内存
+
+另外，，因此我们还需要 防止 `elements`为空的情况：若`elements`为空，则我们什么也不做：
+```cpp
+void StrVec::free()
+{
+    if(elements == NULL){
+        auto p = first_free;
+        while(p != elements)
+            alloc.destroy(--p);
+        alloc.deallocate(elements, cap - elements);
+    }
+}
+```
+### 拷贝控制成员
+#### 拷贝构造函数
+
+```cpp
+StrVec::StrVec(const StrVec&rhs)
+{
+    auto ret = alloc_n_copy(rhs.elements, rhs.first_free);
+    elements = ret.first;
+    first_free = ret.second;
+    cap = ret.second;
+}
+```
+
