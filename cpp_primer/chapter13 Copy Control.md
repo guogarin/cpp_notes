@@ -953,7 +953,16 @@ void swap(Message &lhs, Message &rhs)
 
 &emsp;
 &emsp;
-## 11. 
+## 11. 实现一个 动态内存管理类
+&emsp;&emsp; 某些类需要在运行时分配可变大小的内存空间，这种类通常使用标准库容器来保存它们的数据，比如vector。某些类需要自己进行内存管理，这些类一般来说必须定义自己的拷贝控制成员来管理所分配的内存。
+&emsp;&emsp; 但是这一策略并不是对每个类都适用：某些类需要自己进行内存分配。这些类一般来说必须定义自己的拷贝控制成员来管理所分配的内存。
+我们将实现`标准库vector`的一个简化版本，名为`StrVec类`，该类只用于`string`。
+&emsp;&emsp; `StrVec类`将使用一个allocator来获取原始内存，由于allocator获取的原始内存是未构造的，我们将在需要添加新元素时使用`constructor`在原始内存中创建对象，在删除元素时使用`destory`销毁元素。每个`StrVec`有三个指针成员指向其元素使用的内存：
+> elements：指向分配的内存中的首元素
+> first_free：指向最后一个实际元素之后的位置
+> cap：指向分配的内存末尾之后的位置
+
+### 11.1 类的定义
 ```cpp
 class StrVec{
 public:
@@ -979,11 +988,20 @@ private:
     pair<string*, string*> alloc_n_copy(const string *, const string *);
 };
 ```
-### 为什么`alloc`要被声明为`static变量`？
+### 11.2 为什么`alloc成员变量`要被声明为`static成员变量`？
+&emsp;&emsp; `static成员变量`不属于对象，而是属于类本身，也就是说所有`StrVec`对象共享同一个`alloc成员变量`。
+&emsp;&emsp; `alloc成员变量` 是 `allocator对象`，通过 `allocator对象`我们可以申请未构造的内存，我们可以通过同一个`allocator对象`来申请内存，而不同对象申请的内存是互相独立的，因此可以让所有 `StrVec`对象 共用同一个 `allocator对象` 来申请内存。
 
-### const成员函数
+### 11.3 const成员函数
+&emsp;&emsp; 对于不改变调用对象的函数，应该声明为 const成员函数：
+```cpp
+size_t size() const { return first_free - elements;}
+size_t capacity() const { return cap - elements ;} 
+string * begin() const {return elements;}
+string * end() const {return first_free;}
+```
 
-### `push_back()`的实现
+### 11.4 `push_back()`的实现
 `push_back()`的实现需要保证以下方面：
 > 确保有空间可插入：这里用已在类内实现的`check_n_alloc()`函数即可；
 > 因为我们使用的是`allocator类`，因此目标内存是未构造的，我们需要用`alloc.construct`进行构造。
@@ -996,7 +1014,7 @@ void StrVec:: push_back(const string *str)
     alloc.construct(first_free++, str);
 }
 ```
-### `alloc_n_copy()`的实现
+### 11.5 `alloc_n_copy()`的实现
 &emsp;&emsp; 此函数只会在 拷贝构造函数 和 拷贝赋值运算符 中使用，此时还没调用`alloc.allocate()`分配内存，因此需要在`alloc_n_copy()`内部先请求分配足够的内存 再从原对象中拷贝。
 ```cpp
 pair<string*, string*> StrVec::alloc_n_copy(const string *s, const string *e)
@@ -1006,7 +1024,8 @@ pair<string*, string*> StrVec::alloc_n_copy(const string *s, const string *e)
     return {data, end};
 }
 ```
-### `free()`的实现
+
+### 11.6 `free()`的实现
 `free()`的任务是释放内存，因为内存是通过`allocator类`分配的，因此`free()`有两个工作：
 > ① `destroy()`所有的元素
 > ① `deallocate()`分配的内存
@@ -1023,8 +1042,8 @@ void StrVec::free()
     }
 }
 ```
-### 拷贝控制成员
-#### 拷贝构造函数
+### 11.7 拷贝控制成员
+#### 11.7.1拷贝构造函数
 
 ```cpp
 StrVec::StrVec(const StrVec&rhs)
@@ -1035,4 +1054,56 @@ StrVec::StrVec(const StrVec&rhs)
     cap = ret.second;
 }
 ```
+#### 11.7.2 拷贝赋值运算符 如何处理自赋值？
+&emsp;&emsp; 先使用`alloc_n_copy()`，然后再free，最后再将`alloc_n_copy()`的返回值赋给 成员即可。
+```cpp
+StrVec& StrVec::StrVec(const StrVec & rhs)
+{
+    auto ret = alloc_n_copy(rhs.elements, rhs.first_free);
+    free();
+    elements = ret.first;
+    first_free = ret.second;
+    cap = ret.second;    
+    return *this;
+}
+```
 
+### 11.8 `reallocate()`的实现
+#### 11.8.1 `reallocate()`需要完成功能
+在编写reallocate函数之前，我们思考一下它的功能：
+> ① 为一个新的、更大的string数组分配内存
+> ② 在内存空间的前一部分构造对象，保存现有元素
+> ③ 销毁原内存空间中的元素，并释放这块内存
+> 
+#### 11.8.2 如何提高性能？
+**但这会带来一个问题**:
+&emsp;&emsp; 为一个string数组重新分配内存会引起从就内存空间到新内存空间逐个拷贝string的问题。（因为string类具有类值行为，当拷贝一个string时，新老string是相互独立的）在重新分配内存空间时，如果我们能够避免分配和释放string的额外开销，那么StrVec的性能就会好很多。
+&emsp;&emsp; 在C++11标准中，有一些标准库类（包括string）定义了 **“移动构造函数”**，该函数将资源从给定对象“移动”而不是拷贝到正在创建的对象。
+**但什么是 “移动构造函数” 呢？**
+&emsp;&emsp; 我们可以这么理解：就拿string类来说，假设每个string都有一个指向char数组的指针，可以假定string的移动构造函数进行了指针的拷贝，而不是为字符分配内存空间然后拷贝字符。
+**如何使用标准库容器的 移动构造函数 呢？**
+&emsp;&emsp; 我们可以使用名为`move`的标准库函数，它定义在`utility`头文件中。
+```cpp
+void StrVec::reallocate()
+{
+    size_t new_capacity = size() ? 2*size() : 1;
+    auto new_data = alloc.allocate(new_capacity);
+    auto dest = new_data;
+    auto elem = elements;
+    while(elem != first_free)
+        alloc.construct(dest++ ,std::move(*elem++));
+    free();
+    elements = new_data
+    first_free = dest
+    cap = new_data + new_capacity;       
+}
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 12. 对象移动
