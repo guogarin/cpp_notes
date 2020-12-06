@@ -1107,3 +1107,4 @@ void StrVec::reallocate()
 &emsp;
 &emsp;
 ## 12. 对象移动
+### 12.1 对象移动的引入 带来了哪些优点？
