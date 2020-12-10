@@ -902,7 +902,7 @@ Message::Message(const Message &m):contents(m.contents), folders(m.folders)
 
 void Message::remove_from_folders()
 {
-    for(f : m.folders)
+    for(f : folders)
         f->remMsg(this);
 }
 
@@ -1197,12 +1197,16 @@ int &&rr2 = i * 42;	 //正确，将rr2绑定到右值上
 int &&rr1 = 42; 	//正确，字面常量是右值
 int &&rr2 = rr1;	//错误，表达式rr1是左值
 ```
+
 ### 15.8 有没有什么办法可以将 右值引用 绑定到一个变量上？
 &emsp;&emsp; 虽然不能将一个右值引用 直接绑定到一个左值上，但我们可以显式的将一个左值转换为 对应的右值引用类型：使用 标准库函数`move()`可以获得绑定到左值上的右值引用，此函数定义在 头文件`utility`中：
 ```cpp
 int &&rr1 = 42; 
 int &&rr3 = std::move(rr1); // 正确
 ```
+
+### 15.9 传 右值引用 给一个函数时，为什么不把它声明为`const`？
+&emsp;&emsp; 因为在定义一个 接收右值引用参数的函数时，我们希望可以从实参“窃取”数据，这意味着我们需要改变实参，因此不能声明为`const`
 
 
 
@@ -1457,7 +1461,7 @@ hp = std::move(hp2);	//std::move(hp2)返回一个绑定了hp2的右值引用，�
 ### 17.15 更新三五法则
 &emsp;&emsp; 所有五个拷贝成员应该看成一个整体：一般来说，如果一个类定义了任何一个拷贝操作，它就应该定义所有五个操作。
 
-### 17.6 为`Message`类定义移动操作
+### 17.16 为`Message`类定义移动操作
 ```cpp
 void Message::move_Folders(Message * m)
 {
@@ -1485,6 +1489,10 @@ Message& Message::operator=(Message &&rhs)
 }
 ```
 
+### 17.17 使用移动操作时需要注意什么？
+&emsp;&emsp; 由于一个移后源对象具有不确定状态，对其调用 std::move 是危险的。当我们调用move 时，必须绝对确认移动后源对象没有其它用户。
+&emsp;&emsp; 通过在代码中小心的使用`move()`可以大幅度提高性能，而如果随意在普通代码中使用移动操作，很可能导致莫名其妙、难以查找的错误，起到相反的效果。
+
 
 
 
@@ -1502,13 +1510,90 @@ Message& Message::operator=(Message &&rhs)
 
 ### 18.3 移动迭代器 和 普通的迭代器有何区别？
 它们的区别在于 解引用后的返回值：
-&emsp;&emsp;**普通的迭代器**的解引用运算符返回一个指向元素的左值
-&emsp;&emsp;**移动迭代器**的解引用运算符将生成一个右值引用
+&emsp;&emsp; **普通的迭代器** 的解引用运算符 返回一个指向元素的左值
+&emsp;&emsp; **移动迭代器** 的解引用运算符 返回一个右值引用
 
 ### 18.4 怎么获取 移动迭代器？
 &emsp;&emsp;通过标准库函数`make_move_iterator()` 可以将 一个普通的迭代器 转换为 一个移动迭代器，此函数接收一个迭代器参数，返回一个 移动迭代器。
 
 ### 18.5 用移动迭代器重写 `StrVec::reallocate()`函数
+&emsp;&emsp; 在之前版本的 `StrVec::reallocate()`中，我们使用一个for循环来调用`construct`来将元素拷贝到新内存：
+```cpp
+while(elem != first_free)
+    alloc.construct(dest++ ,std::move(*elem++));
+```
+作为一种替换的方法，如果我们可以调用`uninitialized_copy()`来构造新分配的内存，将比循环更为简单，但问题是`uninitialized_copy()`恰如其名：他对元素进行拷贝，而不是移动，而且标准库也没有类似的函数 可以将对象“移动”到未构造的内存中，在个时候，移动迭代器就派上用场了：
+```cpp
+void StrVec::reallocate()
+{
+    auto newcapacity = size() ? 2*size() : 1;
+    auto first = alloc.allocate(newcapacity);
+    auto last = uninitialized_copy(make_move_iterator(begin()), make_move_iterator(end()))
+    free()
+    elements = first;
+    first_free = last;
+    cap = elements + newcapacity;
+}
+
+    size_t new_capacity = size() ? 2*size() : 1;
+    auto new_data = alloc.allocate(new_capacity);
+    auto dest = new_data;
+    auto elem = elements;
+    while(elem != first_free)
+        alloc.construct(dest++ ,std::move(*elem++));
+    free();
+    elements = new_data
+    first_free = dest
+    cap = new_data + new_capacity;       
+}
+```
+
+### 18.6 使用移动迭代器时 需要注意什么？
+&emsp;&emsp; 标准库不保证哪些算法适用于 移动迭代器，哪些不适用。由于移动一个对象可能销毁掉原对象，因此只有在确信算法在为一个元素赋值或将其传递给一个用户定义的函数后不再访问它时，才能将移动迭代器传递给算法。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 19 右值引用 和 成员函数
+&emsp;&emsp; 除了构造函数和赋值运算符外，如果成员函数同时提供拷贝和移动版本，他也能从中受益。
+### 19.1 成员函数 的移动版本 的工作原理是：
+&emsp;&emsp; 函数重载。
+&emsp;&emsp; 这种允许移动的成员函数通常使用和拷贝/移动构造函数 和 拷贝/移动运算符相同的参数模式：一个版本接收指向const的左值引用，第二个版本接受一个指向非const的右值引用。
+&emsp;&emsp; 例如，定义有`push_back()`的标准库容器就提供了两个版本：一个接收指向const的左值引用，另一个接受一个指向非const的右值引用：
+```cpp
+void push_back(const X&);	// 拷贝，绑定到任意类型的X
+void push_back(X&&);	    // 移动，只能绑定到类型X的可修改右值
+```
+当传递给`push_back`是一个 右值引用的时候，能与`void push_back(X&&)`精确匹配，编译器会选择运行 指向非const的右值引用版本的`push_back()`函数
+
+### 19.2 为`StrVec`类定义一个 移动版本的`push_back()`函数
+```cpp
+class StrVec {
+public:
+    void push_back(const std::string&); // 拷贝元素
+    void push_back(std::string&&);      // 移动元素
+    // 其它元素如前
+};
+
+// 和之前的一样
+void StrVec::push_back(const string& s)
+{
+    chk_n_alloc(); // 确保有足够的空间
+    // construct a copy of s in the element to which first_free points
+    alloc.construct(first_free++, s);
+}
+
+// 移动版本的 push_back()
+void StrVec::push_back(string &&s) // 形参类型是 右值
+{
+    chk_n_alloc(); // 确保有足够的空间
+    alloc.construct(first_free++, std::move(s));
+}
+```
 
 
 https://www.cnblogs.com/xiaojianliu/p/12496755.html
