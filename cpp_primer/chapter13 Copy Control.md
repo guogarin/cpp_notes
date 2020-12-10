@@ -1594,6 +1594,164 @@ void StrVec::push_back(string &&s) // 形参类型是 右值
     alloc.construct(first_free++, std::move(s));
 }
 ```
+当我们调用`push_back`时，实参类型决定了新元素是拷贝还是移动到容器中：
+```cpp
+StrVec vec; // empty StrVec
+string s = "some string or another";
+vec.push_back(s);       // 调用 push_back(const string&)
+vec.push_back("done");  // 调用 push_back(string&&)
+```
+#### 19.2.1 为什么 `vec.push_back("done")` 调用的是 移动版本的 `push_back()`？
+&emsp;&emsp; "done"是一个字符型字面常量，也就是说它不是一个左值，而是一个右值，左值是那些可以通过地址符`&`获取地址的变量，而"done"不能获得地址，因此它是一个右值。
+
+### 19.3 能否向右值 赋值？
+可以的：
+```cpp
+string s1 = "a value", s2 = "another";
+auto n = (s1 + s2).find('a');
+s1 + s2 = "wow!";   // s1 + s2 是右值，这里向右值赋值了
+```
+
+### 19.4 引用限定符
+#### 19.4.1 引用限定符的作用是？
+&emsp;&emsp; 引用限定符 用于成员函数的定义，**它用来“限定” 成员函数的`this指针`指向的对象的值的属性**：
+> 对于`&` 限定的函数，`this指针`指向的对象 只能是 左值；
+> 对于`&&`限定的函数，`this指针`指向的对象 只能是 右值
+> 
+#### 19.4.2 如何使用 引用限定符？
+&emsp;&emsp; 我们指出 this的 左值/右值属性 的方式和 定义const成员函数 相同，即，在参数列表后面 放置一个 引用限定符：
+#### 19.4.3 引用限定符 "限定"的是谁？
+&emsp;&emsp; 引用限定符 “限定”的是 `this指针`。也是因为这个原因，引用限定符才只能用于 成员函数，因为只有类才有`this指针`。因此对于 赋值运算符来说，引用限定符限定的是它左侧的对象，因为拷贝赋值运算符 的`this指针`是绑定到 `=`左侧的对象的。
+
+#### 19.4.4 使用 引用限定符的时候需要注意什么？
+&emsp;&emsp; 引用限定符只能用于(非static)成员函数，而且必须同时出现在函数的声明和定义中
+
+#### 19.4.5 const限定符和 引用限定符同时出现时 对它俩的顺序有要求吗？
+&emsp;&emsp; 一个函数可以同时使用 const 和引用限定符，在此情况下，引用限定符必须跟随在const 限定符之后：
+```cpp
+class Foo{
+public:
+	Foo someMes() & const; 	//错误，const限定符必须在前
+	Foo someMes() const &; 	//正确，const限定符必须在前
+};
+```
+
+### 19.5 如何在自己的类中阻止向一个右值(左值)赋值？
+&emsp;在C++11之前，我们没有办法阻止 向右值 赋值，在C++11中我们可以前置 左侧运算对象(也就是this指针指向的对象)是一个左值：我们指出 this的 左值/右值属性 的方式和 定义const成员函数 相同，即，在参数列表后面 放置一个 引用限定符：
+> &emsp;&emsp; 引用限定符 可以是`&` 或 `&&`，类似于 const限定符，引用限定符只能用于(非static)成员函数，因为 引用限定符 “限定”的是 `this指针`，而只有类才有`this指针`，因此只能用于 成员函数。
+> &emsp;&emsp; 引用限定符 必须同时出现在函数的 声明 和 定义 中。
+> &emsp;&emsp; 对于`&`限定的函数，我们只能将它用于左值；、对于 `&&`限定的函数，我们只能将它用于右值。
+> 
+
+### 19.6 写一个类`Foo`，它阻止向一个 `Foo`类型的右值 赋值
+(1) 因为阻止的是向右值赋值，所以应该使用 引用限定符`&`
+(2) 因为是阻止赋值，所以应该在 类`Foo`的拷贝赋值运算符的声明和定义中使用 引用限定符`&`
+```cpp
+class Foo {
+public:
+Foo &operator=(const Foo&) &; // 加了引用限定符，因此只能向可修改的左值赋值
+    // other members of Foo
+};
+
+Foo &Foo::operator=(const Foo &rhs) &
+{
+    // 执行将rhs赋予本对象(this)所需的工作
+    return *this;
+}
+
+Foo &retFoo();  // retFo()函数返回一个引用，而调用一个 返引用的函数 将得到左值（第六章有讲）
+Foo retVal();   // retVal()函数返回的是一个值，这意味它返回的是 右值
+Foo i, j;       // i 和 j 是左值
+i = j;          // 正确: i 是左值
+retFoo() = j;   // 正确: retFoo()返回一个引用，这意味着调用它将返回左值
+retVal() = j;   // 错误: retVal() 返回的是右值，我们不能向右值赋值
+i = retVal();   // 正确: w我们可以将右值作为赋值运算符的右侧运算符
+```
+#### &emsp;19.6.1 `retVal() = j;`为什么是错误的？
+&emsp;&emsp; 我们先来看一下`Foo`类的 拷贝赋值运算符 的声明:
+```cpp
+Foo &operator=(const Foo&) &; 
+```
+我们一步一步来解释一下：
+> &emsp;&emsp;① 可以看到，`Foo`类的 拷贝赋值运算符 里有 引用限定符`&`，这意味着 `Foo`类的 拷贝赋值运算符 只能用于左值；
+> &emsp;&emsp;② 另外，引用限定符 “限定”的是 `this指针`，而 拷贝赋值运算符 的`this指针`是绑定到 `=`左侧的对象的，也就是说拷贝赋值运算符左侧的对象(即`=`左侧对象)必须是一个左值；
+> &emsp;&emsp;③ 我们来看`retVal() = j;`，在这个语句中， `=`左侧的对象是`retVal()`函数的返回值，但问题是 `retVal()`函数返回的是一个右值，因此他违反了 `Foo`类的拷贝赋值运算符能用于左值 的限定，所以它不正确。
+> 
+#### &emsp;19.6.2 `retFoo() = j;`为什么正确？
+&emsp;&emsp; `retFoo()`函数返回的就是一个引用，而调用一个 返引用的函数 将得到一个左值，所以它正确。
+
+### 19.7 引用限定符 在函数重载的时候 起作用吗？
+&emsp;&emsp; 就像成员函数可以根据是否有const来区分重载版本，引用限定符也可以区分重载版本，并且还可以 综合引用限定符和const 来区分一个成员函数的重载版本：
+在下面的代码中，我们将为`Foo`定义一个名为data的vector成员和一个名为sorted的成员函数，sorted返回一个Foo对象的副本，该副本中data成员已被排序：
+```cpp
+class Foo{
+public:
+	Foo sorted() &&;	    // 可用于改变的右值
+	Foo sorted() const &;	// 可用于任何类型的Foo
+private:
+	vector<int> data;
+};
+
+//本对象是右值，因此可以原址排序
+Foo Foo::sorted() &&
+{
+	sort(data.begin(),data.end());
+	return *this;
+}
+
+//本对象是const或是一个左值，哪种情况我们都不能对其进行原址排序
+Foo Foo::sorted() const &
+{
+	Foo ret(*this);			//拷贝一个副本
+	sort(ret.begin(),ret.end());	//排序副本
+	return ret;	//返回副本
+}
+```
+&emsp;&emsp; 当我们对一个右值执行sorted时，他可以安全的直接对data成员进行排序，因为对象是一个右值就意味着没有其他用户，因此我们可以改变对象。
+&emsp;&emsp; 当对 一个const右值 或 一个左值执行sorted时，我们不能改变对象，因此就需要在排序前拷贝data。
+&emsp;&emsp; 在调用sorted时，编译器会根据sorted的对象的 左值/右值属性来确定使用哪个sorted版本：
+```cpp
+Foo &retFoo();  // retFo()函数返回一个引用，而调用一个 返引用的函数 将得到左值（第六章有讲）
+Foo retVal();   // retVal()函数返回的是一个值，这意味它返回的是 右值
+
+retFoo.sorted();	// retFoo()是一个左值，调用Foo::sorted() const &
+retVal.sorted();	// retVal()是一个右值，调用Foo::sorted() &&
+```
+
+### 19.8 定义 引用限定符 函数时需要注意什么？
+&emsp;&emsp; 当我们定义 const成员函数时，可以定义两个版本，唯一的差别是 一个版本有const限定，另一个没有：
+```cpp
+class Demo
+{
+	Foo test() const;
+    Foo test();
+};
+```
+而引用限定函数则不一样：如果我们定义两个或者两个以上 具有相同名字和相同参数列表 的成员函数，就必须对所有函数都加上引用限定符，或者所有都不加（注意，是函数名字和参数列表都相同！）：
+```cpp
+class Foo
+{
+	Foo sorted() &&;
+	Foo sorted() const;	//错误，函数名字和参数列表都相同，所以必须加上引用限定符
+	using Comp = bool (const int&,const int&)；
+	Foo sorted(Comp*);	        //正确，虽然同名，但有着不同的参数列表
+	Foo sorted(Comp*) const;	//正确，两个版本都没有使用引用限定符
+};
+```
+&emsp;&emsp; 在上面的代码中，声明了一个 没有参数的const版本的sorted，此声明是错误的，因为Foo类中还有一个无参数版的sorted版本，它有一个引用限定符，因此const版本也必须有引用限定符。
+&emsp;&emsp; 另一方面，接收一个比较操作指针的sorted版本是没有问题的，因为两个函数都没有 引用限定符。
+正确的定义如下：
+```cpp
+class Foo
+{
+	Foo sorted() &&;
+	Foo sorted() const &;	//正确
+	using Comp = bool (const int&,const int&)；
+	Foo sorted(Comp*);	
+	Foo sorted(Comp*) const;	
+};
+```
+**注意** ：如果一个成员函数有引用限定符，则具有相同参数列表的所有版本都必须具有引用限定符（仔细看，是函数名字和参数列表都相同！）。
 
 
 https://www.cnblogs.com/xiaojianliu/p/12496755.html
