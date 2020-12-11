@@ -1723,7 +1723,7 @@ retVal.sorted();	// retVal()是一个右值，调用Foo::sorted() &&
 ```cpp
 class Demo
 {
-	Foo test() const;
+    Foo test() const;
     Foo test();
 };
 ```
@@ -1754,6 +1754,12 @@ class Foo
 **注意** ：如果一个成员函数有引用限定符，则具有相同参数列表的所有版本都必须具有引用限定符（仔细看，是函数名字和参数列表都相同！）。
 
 
-https://www.cnblogs.com/xiaojianliu/p/12496755.html
-https://zhuanlan.zhihu.com/p/107445960
-https://zhuanlan.zhihu.com/p/54050093 
+
+
+
+
+&emsp;
+&emsp;
+## 20. 阅读网上关于右值引用的博文后的总结
+### 20.1 
+.TODO: https://zhuanlan.zhihu.com/p/107445960
