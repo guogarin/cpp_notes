@@ -305,7 +305,73 @@ bool operator!=(const Sales_data &lhs, const Sales_data &rhs)
 ### 7.1 对于 关系运算符，应该将其定义为 成员函数 还是 非成员函数？ 为什么？
 &emsp;&emsp; 和算术运算符一样，我们通常应该将 关系运算符 定义为 非成员函数，这样左侧、右侧的运算对象就能互相转换了，要不然左侧就必须是该对象，具体的分析见前面`string`类的`+`运算符的例子。
 
-### 7.2 关系运算符
+### 7.2 `>` 和 `<` 应该优先定义哪个？
+&emsp;&emsp; 应该优先定义 小于号，因为很多容器和算法会用到它。
+
+通常情况下，关系运算符应该：
+> (1) 定义顺序关系，令其与关联容器中对关键字的要求一致，并且
+> (2) 如果类同时含有`==`运算符的话，则定义一种关系令其与`==`保持一致。特别是，如果两个对象是`!=`的，那么一个对象应该`<`另一个。
+
+### 7.3 为`Sales_data`类定义 `>` 和 `<`
+&emsp;&emsp; 对Sales_data类来说，关系运算符没有什么必要，因为语义上违直觉。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 8. 赋值运算符
+### 8.1 我们应该定义哪些赋值运算符？
+&emsp;&emsp; 看需求，基本的有：拷贝赋值运算符、移动赋值运算符，如果需要，可以定义其它的赋值运算符，以使用别的类型作为右侧运算对象。
+&emsp;&emsp; 举个例子，除 拷贝赋值运算符、移动赋值运算符 之外，标准库`vector`类 还定义了第三种赋值运算符，该运算符接收花括号内的元素作为参数，这使得我们能以这种形式使用该运算符：
+```cpp
+vector<string> vec;
+vec = {"Hello", "World", ","};
+```
+
+### 8.2 定义赋值运算符的时候应该注意什么？
+(1) 和 内置的赋值运算符 一样，自定义的赋值运算符应该返回其左侧对象的引用；
+(2) 在重载赋值运算符时，不管形参的类型是什么，赋值运算符都应该定义为成员函数，因为`this指针`会绑定到`=`左侧对象中，而要调用 一个类的赋值运算符 给一个对象赋值，那这个对象的类型肯定是这个类。
+
+### 8.3 为 `StrVec`类 提供一个 赋值运算符，它接收 花括号内的元素作为参数
+&emsp;&emsp; 和拷贝赋值运算符一样，要和 内置的赋值运算符 保持一致，这个新的赋值运算符应该返回其左侧对象的引用：
+```cpp
+class StrVec {
+public:
+    StrVec &operator=(std::initializer_list<std::string>);
+    // 其它成员
+
+StrVec &StrVec::operator=(initializer_list<string> il)
+{
+    auto data = alloc_n_copy(il.begin(), il.end());
+    free(); 
+    elements = data.first; 
+    first_free = cap = data.second;
+    return *this;
+}
+```
+
+### 8.4 为 `Sales_data`类定义 复核运算符`+=`
+#### 8.4.1 `+=`运算符 应该定义为 成员函数还是非成员函数？
+&emsp;&emsp; 和`+`运算符 必须是非成员函数 不一样，`+=`运算符可以是 非成员函数，也可以是 成员函数，但一般倾向于将其定义为 成员函数，这样就可以把所有 赋值操作相关的运算符 都统一定义为 成员函数。
+#### 8.4.2 定义
+&emsp;&emsp; 和 内置的 复核赋值运算符 保持一致，此复核赋值运算符 也应该返回其左侧对象的引用：
+```cpp
+Sales_data& operator+=(const Sales_data&rhs)
+{
+    units_sold += rhs.units_sold;
+    revenue += rhs.revenue ;
+    return *this;
+}
+Sales_data& Sales_data::operator+=(const Sales_data &rhs)
+{
+    units_sold += rhs.units_sold;
+    revenue += rhs.revenue;
+    return *this;
+}
+```
 
 
 
