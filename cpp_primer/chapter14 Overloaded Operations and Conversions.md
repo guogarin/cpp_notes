@@ -376,5 +376,138 @@ Sales_data& Sales_data::operator+=(const Sales_data &rhs)
 
 
 
+
+
+&emsp;
+&emsp;
+## 9. 下标运算符
+### 9.1 重载 下标运算符时需要注意的是？
+(1) 下标运算符 **必须是** 成员数函
+(2) 返回值应该是访问元素的引用（这是为了和下标的原始定义兼容）
+(3) 应该定义两个版本：常量版本 和 非常量版本
+&emsp;&emsp; 常量版本的下标运算符 保证了： 当作用于一个常量对象时，下标运算符返回常量引用以确保我们不会给返回的对象赋值。
+
+### 9.2 给 `StrVec`类 提供 下标运算符
+```cpp
+class StrVec {
+public:
+    std::string& operator[](std::size_t n)
+            { return elements[n]; }
+    const std::string& operator[](std::size_t n) const
+            { return elements[n]; }
+    // other members as in § 13.5 (p. 526)
+private:
+    std::string *elements; // pointer to the first element in the array
+};
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 9. 递增、递减 运算符
+### 9.1 它们应该是成员函数 还是 非成员函数？
+&emsp;&emsp; C++并未规定 递增、递减 运算符 必须是类的成员，但是因为它们改变的正好是所操作对象的状态，所以建议将其设定为 成员函数。
+
+### 9.2 重载 递增、递减 运算符 是要注意什么？
+(1) 建议将其设定为 成员函数；
+(2) 应该同时提供前置版本 和 后置版本
+(3) 只定义前置版本，后置版本调用对应的前置版本即可。
+(4) 为了与内置版本保持一致，前置版本应该返回 递增(递减)后对象的引用，后置版本应该返回原值
+
+### 9.3 前置、后置 递增(递减)运算符的返回值应该是？
+应该和他们对应的内置版本保持一致：
+> 前置版本：返回 递增(递减)后对象的引用
+> 后置版本：返回原值
+
+### 9.4 编译器 如何区分 前置和后置 递增(递减)运算符？
+&emsp;&emsp; 在同时定义 前置和后置 递增(递减)运算符 时，普通的重载形式是无法区分该 递增(递减)运算符 到底是 前置版本 还是 后置版本的，因为它们使用的是同一个运算符号，而且形参列表也一样。
+&emsp;&emsp; ，**为了解决这个问题**，后置版本可以接受一个 额外的(不被使用的) `int`类型的形参。当我们使用后置运算符时，编译器为这个形参提供一个值为0的实参。尽管从语法上说后置函数可以使用这个额外的形参，但在实际过程中通常不会这么做，这个形参唯一的作用就是区分 前置版本和后置版本的函数。
+```cpp
+class StrBlobPtr {
+public:
+    // increment and decrement
+
+    StrBlobPtr& operator++(); // prefix operators
+    StrBlobPtr& operator--();
+
+    StrBlobPtr operator++(int); // postfix operators
+    StrBlobPtr operator--(int);
+    // other members as before
+};
+```
+
+### 9.5 为下面的`Time`类定义 递增、递减 运算符
+#### 9.5.1 `Time`类
+```cpp
+class Time
+{
+private:
+    int hours;             // 0 到 23
+    int minutes;           // 0 到 59
+public:
+    // 默认构造函数
+    Time(int h = 0, int m = 0):hours(h),minutes(m) { }
+    // Time(int h , int m):hours(h),minutes(m) { }
+
+    Time& operator++();
+    Time& operator--();
+    Time operator++(int);
+    Time operator--(int);
+
+    // 显示时间的方法
+    void displayTime() { cout << "H: " << hours << " M:" << minutes <<endl;}
+};
+```
+#### 9.5.2 定义 递增、递减 运算符
+```cpp
+Time& Time::operator++() 
+{
+    ++minutes;
+    if(minutes >= 60){
+        ++hours;
+        minutes -= 60;
+    }
+    return *this;
+}
+
+Time& Time::operator--()
+{
+    --minutes;
+    if(minutes < 0){
+        if (hours <= 0){
+            cout << "Erro" <<endl;
+            hours = minutes = 0;
+        }
+        --hours;
+        minutes += 60;
+    }    
+    return *this;
+}
+
+Time Time::operator++(int) // 此时形参不需要命名，因为我们不会使用该参数
+{
+    Time ret = *this;
+    ++*this; // 调用对应的前置版本的 ++运算符
+    return ret;
+}
+
+Time Time::operator--(int)
+{
+    Time ret = *this;
+    --*this;
+    return ret;
+}
+```
+
+
+&emsp;
+&emsp;
+## 为什么有的运算符只能是成员函数？
+ https://zhuanlan.zhihu.com/p/184766356    TODO:
+
 https://r00tk1ts.github.io/2018/11/29/C++%20Primer%20-%20%E9%87%8D%E8%BD%BD%E8%BF%90%E7%AE%97%E4%B8%8E%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2/
 
