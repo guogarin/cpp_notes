@@ -455,6 +455,8 @@ public:
 
     Time& operator++();
     Time& operator--();
+
+    // 后置版本的 递增(递减)运算符
     Time operator++(int);
     Time operator--(int);
 
@@ -488,10 +490,11 @@ Time& Time::operator--()
     return *this;
 }
 
+// 后置版本调用对应的前置版本即可
 Time Time::operator++(int) // 此时形参不需要命名，因为我们不会使用该参数
 {
     Time ret = *this;
-    ++*this; // 调用对应的前置版本的 ++运算符
+    ++*this; 
     return ret;
 }
 
@@ -502,6 +505,132 @@ Time Time::operator--(int)
     return ret;
 }
 ```
+#### 9.5.3 测试
+```cpp
+int main()
+{
+    Time t1(1, 59);
+    ++t1;
+    t1.displayTime();
+    (--t1).displayTime();
+    
+    (t1--).displayTime();
+    t1.displayTime();
+
+    (t1++).displayTime();
+    t1.displayTime();
+    return 0;
+}
+
+```
+运行结果：
+> H: 2 M:0
+> H: 1 M:59
+> H: 1 M:59
+> H: 1 M:58
+> H: 1 M:58
+> H: 1 M:59
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 10. 成员访问运算符
+### 10.1 箭头运算符(->) 和 解引用运算符(*) 应该定义为 成员函数 还是 非成员函数？
+&emsp;&emsp; 箭头运算符(->)**必须是**类的成员；
+&emsp;&emsp; 虽然并没有强制规定，但解引用运算符(*) 通常也是类的成员。
+
+### 10.2 箭头运算符(->) 和 解引用运算符(*) 的返回值有何限定？
+&emsp;&emsp; 解引用运算符(*) ，我们可以令 `operator*` 完成我们任何指定的操作。换句话说，我们可以让 `operator*` 返回一个固定值如`Hello World`，或则打印对象的内容等等，但还是建议和内置的类型保持一致（即返回指针所指向对象）。
+&emsp;&emsp; 箭头运算符(->)则不是这样的，它永远不能丢掉成员访问这个最基本的含义，也就是说 在重载箭头运算符时，可以改变的是箭头从哪个对象中获取成员，而 箭头运算符是用来获取成员的 这一事实永远不会变。**换句话说，箭头运算符(->)的返回值必须是：**
+> 类的指针
+> 自定了箭头运算符的某个类的对象
+
+### 10.3 表达式 `point->mem` 有哪几种解释？
+**(1) 若`point`是 内置指针**
+&emsp;&emsp; 因为`point`是 内置指针，则我们使用的是 内置的箭头运算符，则该表达式等价于`(*point).mem`：先解引用指针`point`，然后从它指向的对象中获取成员`mem`，若`point`指向的类型没有名为`mem`的成员，则程序会发生错误。
+**(2) 若`point`是 定义了`operator->`的类的对象**
+&emsp;&emsp; 若`point`是 定义了`operator->`的类的对象，则我们使用`point.operator->()`的 返回结果 来获取`mem`，此时有两种情况：
+> 如果 该返回结果是一个指针，则执行 前面的 第(1)步；
+> 如果 该返回结果 本身含有重载的的 `operator->()`，则重复调用当前步骤。
+>   
+在这一系列过程结束时，程序可能返回了所需的内容，也可能返回一些表示程序错误的消息。
+
+### 10.4 在下面的代码中，为什么同样是`->foo`，得到的结果却不一样呢？
+```cpp
+include <string>
+#include <iostream>
+
+using namespace std;
+
+struct A { 
+    string foo = "I am in struct A"; 
+};
+
+struct B { 
+    A a;
+    A *operator->() { return &a; } // 这里返回的是 a成员 的地址
+};
+
+struct C { 
+    B b;  
+    B operator->() { return b; } 
+};
+
+struct D { 
+    C c;
+    string foo = "Hello,it's struct D";
+    C operator->() { return c; }
+};
+
+int main()
+{
+    D d1;
+    cout << d1->foo << endl;
+    D *d2 = &d1;
+    cout << d2->foo << endl;
+    return 0;
+}
+
+```
+运行结果：
+> [zhangsan@localhost code]$ ./test.o 
+> I am in struct A
+> Hello,it's struct D
+#### &emsp; 10.4.1 `cout << d1->foo << endl;` 的运行原理是？
+&emsp;&emsp; 箭头运算符的实现，是用循环来做的，会反复调用operator->()直到返回值是一个指针。
+&emsp;&emsp; 对于`d1->foo`来说，因为 对象`d1`的类型是 `D`类，因此在对`d1`调用 箭头运算符`->`时，调用的是其实是`C operator->() { return c; }`，然后它返回 `D`类的的成员`c`，然后循环调用直到获取到 类A的成员`foo`，详细的调用过程是这样的：
+> 第一步：`d1->foo`调用`D::operator->()`得到 `D`类的成员`c`；
+> 第二步：对上一步得到的 `D`类的成员`c`调用 `C::operator->()` 得到 `C`类的成员`b`；
+> 第三步：对上一步得到的 `C`类的成员`b`调用 `B::operator->()` 得到 一个指向`B`类的成员`a`的指针；
+> 第三步：因为 上一步得到的是 一个指向`B`类的成员`a`的指针，因此对它调用`->foo`，最终在屏幕中输出 `I am in struct A`
+> 
+也就是说，当`d`不是指针的时候，编译器会不停的调用`d`的`operator->()`直到他变成一个指针，然后才调用`->foo`获得其成员。换句话说，`d1->fo`在经过编译后的代码应该差不多是这样的:
+```cpp  
+*d.operator->().operator->().operator->()).foo; 
+```
+或者:
+```cpp 
+d.operator->().operator->().operator->()->foo; // 这里foo前面是 箭头运算符(->)，上面那个是 点运算符(.)
+```
+#### &emsp; 10.4.2 `cout << d2->foo << endl;`的运行原理是？
+&emsp;&emsp; 首先，`d2`是一个内置指针，它指向的是 对象`d1`，因此`d2->foo`其实调用的是内置指针的`->`，而不是`D::operator->()`，因此`d2->foo`访问的是 `D::foo`，而不是`A::foo`，因此输出结果为`Hello,it's struct D`。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 11. 函数调用运算符
+### 11.1 
+
+
+
 
 
 &emsp;
