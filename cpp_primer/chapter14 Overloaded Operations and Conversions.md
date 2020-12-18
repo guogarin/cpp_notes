@@ -627,8 +627,49 @@ d.operator->().operator->().operator->()->foo; // 这里foo前面是 箭头运�
 &emsp;
 &emsp;
 ## 11. 函数调用运算符
-### 11.1 
+### 11.1 函数调用运算符 应该是成员函数还是非成员函数？
+&emsp;&emsp; 函数调用运算符`()` **必须是成员函数**
 
+### 11.2 一个类可以定义几个函数调用运算符？
+&emsp;&emsp; 一个类可以定义多个函数调用运算符，形参不一样即可（和函数重载一样）。
+
+### 11.3 定义一个 重载了函数调用运算符的类`absInt`，它返回`int`实参的绝对值，并编写测试案例
+```cpp
+struct absInt {
+    int operator()(int val) const {
+        return val < 0 ? -val : val;
+}
+};
+
+int i = -42;
+absInt absObj;      // absObj 是一个含有函数调用运算符的对象
+int ui = absObj(i); // 将 i 传给 absObj.operator()
+```
+
+### 11.4 重载了函数调用运算符的类 相比于 普通的函数 有什么优势呢？
+&emsp;&emsp; 相比于  普通的函数，重载了函数调用运算符的类 同时能存储状态，所以比普通函数更加灵活。
+
+### 11.5 含有状态的 函数对象类 `PrintString`
+
+```cpp
+class PrintString {
+public:
+    PrintString(ostream &o = cout, char c = ' '): os(o), sep(c) { }
+    void operator()(const string &s) const { os << s << sep; }
+private:
+    ostream &os; // stream on which to write
+    char sep;    // character to print after each output
+};
+```
+
+
+
+
+&emsp;
+&emsp;
+## 12. 函数调用运算符
+### 12.1 什么是 函数对象(function object)？
+&emsp;&emsp; 如果类定义了 函数调用运算符`()`，则 该类的对象 称为 函数对象。因为我们可以调用这种对象，所以我们说这些对象的 “行为像函数一样”。
 
 
 
