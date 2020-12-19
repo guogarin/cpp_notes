@@ -650,7 +650,7 @@ int ui = absObj(i); // 将 i 传给 absObj.operator()
 &emsp;&emsp; 相比于  普通的函数，重载了函数调用运算符的类 同时能存储状态，所以比普通函数更加灵活。
 
 ### 11.5 含有状态的 函数对象类 `PrintString`
-
+&emsp;&emsp; 和其它类一样，函数对象类 除了`operator()`之外也可以包含其他成员，这些成员通常被用于定制调用运算符中的操作。
 ```cpp
 class PrintString {
 public:
@@ -660,24 +660,162 @@ private:
     ostream &os; // stream on which to write
     char sep;    // character to print after each output
 };
+
+PrintString printer;    // 默认初始化，即用 cout打印
+printer(s);
+
+PrintString errors(cerr, '\n'); // 用 cerr 答应， \n 为分隔符
+errors(s);
 ```
 
+### 11.6 重载 函数调用运算符 函数 的返回值
+&emsp;&emsp; 对于重载 函数调用运算符 函数 的返回值，C++没有要求，可以返回`void`，也可以是`int`等，看自己的需要。
+
+
 
 
 
 &emsp;
 &emsp;
-## 12. 函数调用运算符
+## 12. 函数对象
 ### 12.1 什么是 函数对象(function object)？
-&emsp;&emsp; 如果类定义了 函数调用运算符`()`，则 该类的对象 称为 函数对象。因为我们可以调用这种对象，所以我们说这些对象的 “行为像函数一样”。
+&emsp;&emsp; 如果类定义了 函数调用运算符`()`，则 该类的对象 称为 函数对象。因为我们可以调用这种对象，所以我们说这些对象的 “行为像函数一样”，又称**仿函数**。
+
+### 12.2 lambda表达式 与 函数对象 
+#### 12.2.1 lambda表达式 与 函数对象 有什么关系？
+&emsp;&emsp; 从本质上来说，lambda表达式只是一种语法糖，因为所有其能完成的工作都可以用其它稍微复杂的代码来实现。
+&emsp;&emsp; **lambda表达式的大致原理**：每当你定义一个lambda表达式后，编译器会自动生成一个匿名类（这个类当然重载了()运算符），我们称为闭包类型（closure type）。那么在运行时，这个lambda表达式就会返回一个匿名的闭包实例，其实一个右值。所以，我们上面的lambda表达式的结果就是一个个闭包。闭包的一个强大之处是其可以通过传值或者引用的方式捕捉其封装作用域内的变量，前面的方括号就是用来定义捕捉模式以及变量，我们又将其称为lambda捕捉块。
+&emsp;&emsp; 换句话说，在我们编写了一个lambda表达式后，编译器将该表达式翻译成 一个未命名类的未命名对象，而且在编译器为lambda表达式生成的未命名类中，含有一个重载的函数调用运算符。
+我们来看下面的代码，对于下面这个lambda表达式：
+```cpp
+statble_sort(words.begin(), words.end(), 
+                [](const string &a, const string &b) { return a.size() < b.size(); });
+```
+编译器产生的类 类似于：
+```cpp
+class NoName{
+public:
+    // 编译器为 lambd表达式 产生的 未命名类 只有一个 函数调用运算符成员。
+    bool operator()(const string &a, const string &b) const { return a.size() < b.size(); }
+};
+```
+我们可以看到 lambda表达式 和对应的 编译器产生的类 的形参列表、函数体 是一样的。，我们可以将前面的lambda表达式改写成：
+```cpp
+stable(words.begin(), words.end(), NoName())
+```
+
+#### 12.2.2 编译器为 lambda表达式 生成的类中的`operator()`成员函数 一定是const的吗？
+&emsp;&emsp; 不一定，要分情况。
+&emsp;&emsp; 默认情况下，lambda表达式是不能改变它捕获的变量的，因此在默认情况下，由lambda产生的类中的`operator()`是一个 const成员函数。
+```cpp
+auto lam_default = [](const string &a, const string &b) { return a.size() < b.size(); }
+```
+对于上面的lambda表达式，编译器为其生成的类如下：
+```cpp
+class NoName{
+public:
+    // operator()是const成员
+    bool operator()(const string &a, const string &b) const { return a.size() < b.size(); }
+};
+```
+&emsp;&emsp; 但如果lambda表达式被声明为`mutable`，则`operator()`就不是 const成员函数了：
+
+```cpp
+auto lam_mutable = [](const string &a, const string &b) mutable { return a.size() < b.size(); }
+```
+对于上面的lambda表达式，因为他是`mutable`的，编译器为其生成的类如下：
+```cpp
+class NoName{
+public:
+    // operator()是 非const成员
+    bool operator()(const string &a, const string &b) { return a.size() < b.size(); }
+};
+```
+
+#### 12.2.3 什么时候 编译器为lambda表达式 生成的类 中会有 除`operator()`以外的成员？
+&emsp; 这要看 lambda表达式在捕获变量时 使用的是 值捕获 还是 引用捕获了：
+&emsp;&emsp; 如我们所知，当一个lambda表达式通过引用捕获变量时，将由程序负责确保lambda执行时所引用的对象确实存在，因此编译器可以直接使用该引用而无需再lambda产生的类中将该变量存储为数据成员。
+&emsp;&emsp; 而通过值捕获的变量将被拷贝到lambda中，此时 编译器为lambda表达式生成的类 必须为每个值捕获的变量建立对应的数据成员，同时建立构造函数，然后使用值捕获的变量的值来初始化对应的成员。来看下面的例子:
+对于下面的 lambda表达式
+```cpp
+auto wc = find_if((words.begin(), words.end(),
+                    [sz](const string &a) { return s.size() >= sz; } )
+```
+因为参数`sz`是通过值捕获的，因此编译器为其生成的类如下：
+```cpp
+class NoName{
+public:
+    // 参数n是通过值捕获传进来的，用来初始化对应的成员
+    NoName(const size_t n): sz(n) { }
+    // operator()是 const成员
+    bool operator()(const string &a)const { return a.size() >= b.size(); }
+private:
+    // sz是值捕获的，编译器会为其生成一个成员
+    size_t sz;
+};
+```
+我们可以看到，上面的类中不包含 默认构造函数，因此想使用它就必须提供一个实参：
+```cpp
+auto c = find_if((words.begin(), words.end(), noName(sz));
+```
+
+#### 12.2.4 lambda表达式 捕获参数 的原理
+
+#### 12.2.5 lambda表达式 可以互相赋值吗？
+&emsp;&emsp; 看是哪种赋值了，`赋值构造`可以，但`直接赋值`不行，因为在编译器为 lambda表达式 生成的类中，赋值操作符 是被删除的，但是没有禁用 复制构造函数，即：
+```cpp
+NoName& operator=(const NoName&) = delete;
+```
+来看下面的例子：
+```cpp
+int main()
+{
+    auto a = [] { cout << "A" << endl; };
+    auto b = [] { cout << "B" << endl; };
+    
+    a = b;   // 非法，因为lambda无法赋值
+    return 0;
+}
+```
+在上面的代码中，在编译时就报错了，你可能会想a与b对应的函数类型是一致的（编译器也显示是相同类型：`lambda [] void () -> void`），为什么不能相互赋值呢？这是因为在编译器为 lambda表达式 生成的类中，赋值操作符 是被删除的，具体报错信息如下：
+```
+test.cpp: In function ‘int main()’:
+test.cpp:11:6: error: no match for ‘operator=’ (operand types are ‘main()::<lambda()>’ and ‘main()::<lambda()>’)
+  a = b;          // 非法，lambda无法赋值
+      ^
+```
+但是通过拷贝构造给一个变量赋值就能编译通过：
+```cpp
+int main()
+{
+    auto a = [] { cout << "A" << endl; };
+    auto b = [] { cout << "B" << endl; };
+
+    auto c = a;     // 合法，利用拷贝构造函数生成一个副本 
+    return 0;
+}
+```
+这是因为拷贝构造函数没有被禁用。
 
 
 
+
+
+
+
+```cpp
+
+```
 
 &emsp;
 &emsp;
 ## 为什么有的运算符只能是成员函数？
  https://zhuanlan.zhihu.com/p/184766356    TODO:
+
+
+## 参考文献
+1. [lambda表达式与函数对象](https://zhuanlan.zhihu.com/p/56242778)
+2. [cpp为什么有的操作符重载函数只能是类的成员函数？]( https://zhuanlan.zhihu.com/p/184766356 )
 
 https://r00tk1ts.github.io/2018/11/29/C++%20Primer%20-%20%E9%87%8D%E8%BD%BD%E8%BF%90%E7%AE%97%E4%B8%8E%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2/
 

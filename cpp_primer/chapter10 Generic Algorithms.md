@@ -48,6 +48,7 @@
       - [如何做到用下面的isShorter()函数对一个vector分别排 正序 和 倒序？](#如何做到用下面的isshorter函数对一个vector分别排-正序-和-倒序)
       - [对于那些不是占位符的参数，bind()函数是传值还是传引用？](#对于那些不是占位符的参数bind函数是传值还是传引用)
       - [下面的diamante有何问题？有的话怎么改？](#下面的diamante有何问题有的话怎么改)
+  - [lambda表达式的原理](#lambda表达式的原理)
   - [C++有哪些迭代器？](#c有哪些迭代器)
   - [插入迭代器(insert iterator)](#插入迭代器insert-iterator)
       - [什么是插入迭代器？](#什么是插入迭代器)
@@ -482,6 +483,15 @@ for_each(words.begin(), words.end(), bind(print, os, _1, ' '));
 ```cpp
 for_each(words.begin(), words.end(), bind(print, ref(os), _1, ' '));
 ```
+
+
+
+
+&emsp;
+## lambda表达式的原理
+&emsp;&emsp; lambda表达式是C++11中引入的一项新技术，利用lambda表达式可以编写内嵌的匿名函数，用以替换独立函数或者函数对象，并且使代码更可读。但是从本质上来将，lambda表达式只是一种语法糖，因为所有其能完成的工作都可以用其它稍微复杂的代码来实现。但是它简便的语法却给C++带来了深远的影响。
+其它笔记见 第十四章
+
 
 
 
