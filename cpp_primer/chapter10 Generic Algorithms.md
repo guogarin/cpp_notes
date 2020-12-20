@@ -126,9 +126,9 @@
       - [怎么避免误用？](#怎么避免误用)
   - [STL算法中查找序列最大值是哪个函数？怎么用？](#stl算法中查找序列最大值是哪个函数怎么用)
   - [sort()](#sort)
-      - [sort()的原理是？](#sort的原理是)
-      - [怎么给序列排正（倒）序？](#怎么给序列排正倒序)
-      - [怎么给序列排倒序：](#怎么给序列排倒序)
+    - [sort()的原理是？](#sort的原理是)
+      - [怎么给序列排正序？](#怎么给序列排正序)
+    - [怎么给序列排倒序：](#怎么给序列排倒序)
   - [stable_sort()](#stable_sort)
       - [(1) stable_sort() 和 sort() 有何区别？](#1-stable_sort-和-sort-有何区别)
       - [(2) 为什么会有这样的区别？](#2-为什么会有这样的区别)
@@ -404,7 +404,7 @@ auto newCallable = bind(callable, arg_list)
 &emsp;&emsp;**newCallable**本身是一个可调用的对象；
 &emsp;&emsp;**arg_list**是一个逗号分隔的参数列表，对应给定的callable的参数。即，当我们调用newCallable时，newCallable会调用callable，并传给它 arg_list中的参数。
 #### bind()函数中的_1、_2表示什么？
-&emsp;&emsp;**arg_list中可能包含形如_n的名字**，其中n是一个整数，这些参数是 `占位符`，表示newCallable的参数，它们占据了传递给newCallable的参数的“位置”。数值n表示生成的可调用对象中参数的位置：_1表为newCallable的第一个参数， _2为第二个参数？
+&emsp;&emsp;**arg_list中可能包含形如`_n`的名字**，其中n是一个整数，这些参数是 `占位符`，表示newCallable的参数，它们占据了传递给newCallable的参数的“位置”。数值n表示生成的可调用对象中参数的位置：_1表为newCallable的第一个参数， _2为第二个参数？
 &emsp;&emsp;_1、_2表示调用时要传进去的参数，举个例子：
 ```cpp
 double my_divide (double x, double y) {return x/y;}
@@ -1066,30 +1066,30 @@ int max= max_element(c.begin(),c.end());// 值得注意的是，max_element()返
 
 &emsp;
 ## sort()
-#### sort()的原理是？
-&emsp;&emsp;sort()算法默认调用元素类型的"<"来进行比较，根据比较结果进行排序。
-#### 怎么给序列排正（倒）序？
+### sort()的原理是？
+&emsp;&emsp;`sort()`算法默认调用元素类型的`<`来进行比较，最后排的是正序。
+#### 怎么给序列排正序？
+因为`sort()`算法默认调用元素类型的`<`来进行比较的，所以
 ```cpp
 vector<int>vec{2,4,1,23,5,76,0,43,24,65};
 // sort()函数默认使用 元素类型的 <运算符 来实现排序:
 sort(vec.begin(), vec.end();
 ```
-#### 怎么给序列排倒序：
+### 怎么给序列排倒序：
 ```cpp
-// 方法1：传一个方向迭代器进去
-sort(vec.rbegin(), vec.rend());
-// 方法2：也可以自己定义比较规则，然后作为sort()的第3个参数传进去：
-// comparison function to be used to sort by word length
-bool isShorter(const string &s1, const string &s2){
-    return s1.size() < s2.size();
-}
-// sort on word length, shortest to longest
-sort(words.begin(), words.end(), isShorter);
+vector<int>vec{2,4,1,23,5,76,0,43,24,65};
 
-bool smaller(int a, int b){
+// 方法1：传一个反向迭代器进去
+sort(vec.rbegin(), vec.rend());
+
+// 方法2：也可以自己定义比较规则，然后作为sort()的第3个参数传进去：
+bool isLonger(const int &a, const int &b){
     return a > b;
 }
-sort(vec.begin(), vec.end(), smaller)
+sort(vec.begin(), vec.end(), isLonger);
+
+// 方法3：用标准库的函数对象(关于函数对象，见第14章的笔记)
+sort(vec.begin(), vec.end(), greater<int>());
 ```
 
 

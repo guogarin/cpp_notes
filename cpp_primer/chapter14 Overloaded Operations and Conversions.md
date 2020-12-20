@@ -675,6 +675,7 @@ errors(s);
 
 
 
+
 &emsp;
 &emsp;
 ## 12. 函数对象
@@ -797,8 +798,73 @@ int main()
 ```
 这是因为拷贝构造函数没有被禁用。
 
+### 12.3 标准库定义的函数对象
+#### 12.3.1 标准库定义了哪些函数对象？
+&emsp;&emsp; 标准库定义了一组表示算数运算符、关系运算符和逻辑运算符的类，每个类分别定义了一个执行命名操作的调用运算符，例如 `plus`类定义了一个函数调用运算符 用于对一对运算对象执行`+`的操作。
+&emsp;&emsp; 这些类都被定义成了模板的形式，我们可以为其指定具体的应用类型，这里的类型即调用运算符的形参类型，例如：`plus<string>`令`string`加法运算符作用与`string`对象，代码实例：
+```cpp
+plus<int> intAdd; // function object that can add two int values
+negate<int> intNegate; // function object that can negate an int value
+// uses intAdd::operator(int, int) to add 10 and 20
+int sum = intAdd(10, 20); // equivalent to sum = 30
+
+// uses intNegate::operator(int) to generate -10 as the second parameter
+// to intAdd::operator(int, int)
+sum = intAdd(10, intNegate(10)); // sum = 0
+```
+| 算术                | 关系                  | 逻辑                |
+| ------------------- | --------------------- | ------------------- |
+| `plus<Type>       ` | `equal_to<Type>     ` | `logical_and<Type>` |
+| `minus<Type>      ` | `not_equal_to<Type> ` | `logical_or<Type> ` |
+| `multiplies<Type> ` | `greater<Type>      ` | `logical_not<Type>` |
+| `divides<Type>    ` | `greater_equal<Type>` |
+| `modules<Type>    ` | `less<Type>         ` |
+| `negate<Type>     ` | `less_equal<Type>   ` |
+
+#### 12.3.2 标准库定义的这些函数对象 通常用来做什么？
+&emsp;&emsp; 表示运算符的函数对象 常用来 替换算法中的默认运算符。
+比如，我们都知道标准库算法都是使用元素的`<`运算符对结果拍正序的，如果想对结果排倒序号，那么可以传入一个 `greater`函数对象，该类将产生一个调用运算符并负责执行待排序类型的大于运算：
+```cpp
+vector<string> svec{"Hello", "world","!","This", "is", "Jack"};
+sort(svec.begin(), svec.end(), greater<string>());
+```
 
 
+
+
+
+
+&emsp;
+&emsp;
+## 13. 可调用对象 和 function
+### 13.1 C++中有哪些可调用对象？
+&emsp;&emsp;函数、lambda表达式、函数指针、bind创建的对象、重载了函数调用运算符的类
+
+### 13.2 如何理解 “不同类型的 可调用对象可能共享同一种调用形式” 这句话？
+&emsp;&emsp;首先来了解一下调用形式的定义：
+> **调用形式** 指明了 调用返回的类型 以及传给给调用的实参类型。
+>
+再来下面的例子：
+```cpp
+// 普通函数：加法
+int add(int i, int i) { return i + j; }
+
+// lambda表达式：取余数
+auto mod = [](int i, int i) { return i % j; };
+
+// 函数对象类：除法
+class divide{
+    int operator()(int i, int i){
+        return i / j;
+    }
+}
+```
+对于上面的三个可调用对象，它们分别是普通函数、lambda表达式、函数对象类，而且各自完成的功能也不一样，但是它们却享有相同的调用形式，即：
+```cpp
+int(int, int) // 接收两个int实参，然后返回一个int
+```
+
+### 13.3 
 
 
 
