@@ -841,7 +841,12 @@ sort(svec.begin(), svec.end(), greater<string>());
 &emsp;&emsp;函数、lambda表达式、函数指针、bind创建的对象、重载了函数调用运算符的类
 
 ### 13.2 如何理解 “不同类型的 可调用对象可能共享同一种调用形式” 这句话？
-&emsp;&emsp;首先来了解一下调用形式的定义：
+&emsp;&emsp; 首先了解一下 **可调用对象的类型**：
+> 和其它对象一样，可调用对象也有类型，例如：
+> &emsp;&emsp;每个lambda表达式都有它自己唯一的(未命名的)类类型；
+> &emsp;&emsp;函数、函数指针 的类型则由其返回值类型和实参类型决定；
+> 
+接着来了解一下调用形式的定义：
 > **调用形式** 指明了 调用返回的类型 以及传给给调用的实参类型。
 >
 再来下面的例子：
@@ -864,7 +869,114 @@ class divide{
 int(int, int) // 接收两个int实参，然后返回一个int
 ```
 
-### 13.3 
+### 13.3 标准库`function`类型
+#### 13.3.1 什么是`function`类型
+&emsp;&emsp; 标准库`function`类型是在C++11中添加的特性，用来存储可调用的对象，如函数指针、可调用类、类成员函数、lambda等。
+&emsp;&emsp; 它是一个模板，当创建一个具体的`function`类型的时候需要提供额外信息，即该`function`类型能表示的对象的调用形式，如：
+```cpp
+int add(int i, int i) { return i + j; }
+function<int(int, int)> f1 = add; // 接收两个int实参，然后返回一个int
+``` 
+`function`定义的操作如下：
+<div align="center"> <img src="./pic/chapter14/function 的操作.png"> </div>
+<center> <font color=black> <b> 图1 function 的操作 </b> </font> </center>
+
+#### 13.3.2 如何使用`function`？
+**定义：**
+```cpp
+funciton<int(int, int)> f1 = add;
+```
+**调用：**
+```cpp
+cout << f1(4, 2) << endl; // 打印 6
+```
+
+#### 13.3.3 为什么需要`function`类型？
+对于下面的几个可调用对象：
+```cpp
+// 普通函数：加法
+int add(int i, int i) { return i + j; }
+
+// lambda表达式：取余数
+auto mod = [](int i, int i) { return i % j; };
+
+// 函数对象类：除法
+class divide{
+    int operator()(int i, int i){
+        return i / j;
+    }
+}
+```
+它们有着相同的调用形式，即：
+```cpp
+int(int, int) // 接收两个int实参，然后返回一个int
+```
+如果我们需要用上面的几个可调用对象来实现一个计算器，那么就需要 定义一个函数表 来存储指向这些可调用对象的“指针”，当计算器程序需要执行某个运算时从里查询就行了。
+因为我们的所有函数都独立，且只处理`int`的二元运算，那我们可以使用一个`map`来存储运算符到对应函数的映射：
+```cpp
+map<string, int(*)(int, int)> binops;
+
+// 将"+"映射到 add函数
+binops.insert({"+", add}); 
+
+// 错误，mod是lambda表达式，它有自己的类类型，而不是函数指针类型 int(*)(int, int)
+binops.insert({"%", mod}); 
+```
+那么问题就来了，上面的几个可调用对象虽有有着相同的调用形式，但它们都有着自己的类型：
+| 可调用对象         | 对应的类型                  |
+| ------------------ | --------------------------- |  
+| add()函数          | 函数指针`int(*)(int, int)`  |
+| lambda表达式`mod`  | 编译器为lambd表达式产生的类 |
+| 函数对象类`divide` | 自定义类`divide`            |
+显然它们的类型是不一样的，这就意味着它们不能保存在同一`map`中。
+**而标准库`function`类型可以解决这个问题：**
+**定义**
+```cpp
+map<string, funciton<int(int, int)>> binops;
+binops.insert({"+", add}); 
+binops.insert({"%", mod});
+binops.insert({"/", divide()}); // divide() 创建了一个divide类对象
+```
+**使用**
+```cpp
+binops["+"](10, 5); // calls add(10, 5)
+
+binops["/"](10, 5); // uses the call operator of the div object
+
+binops["%"](10, 5); // calls the lambda function object
+```
+
+#### 13.3.4 如果有一对重载的函数，如何将其存入 `function`类型？
+来看下面的代码，里面有两个 `add()`：
+```cpp
+int add(int i, int j) { return i + j; }
+Sales_data add(const Sales_data&, const Sales_data&);
+
+map<string, function<int(int, int)>> binops; 
+binops.insert( {"+", add} ); // 错误: 到底是哪个add？
+```
+很显然在上面的代码中存在二义性：编译器无法区分到底是哪个`add()`。这个时候应该怎么办呢？我们知道编译器是根据形参列表来区分重载函数的，因此我们传一个函数指针进去即可，上面的代码应该改成：
+```cpp
+int (*fp)(int int)  = add;
+binops.insert( {"+", fp} );
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 14. 重载 类型转换运算符
+### 14.1 类类型转换(class-type conversions) 由谁控制？
+&emsp;&emsp; 转换构造函数(详见7.5.4) 、 类型转换运算符 共同定义了 类类型转换。
+
+### 14.2 重载 类型转换运算符 时要注意什么？
+(1) 必须定义成成员函数；
+(2) 不能声明返回类型，形参列表也必须为空；
+(3) 因为 类型转换运算符通常不应该改变 待转换对象的内容，因此 类型转换运算符 一般被定义为 `const`成员；
+
 
 
 
