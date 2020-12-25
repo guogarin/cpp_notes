@@ -87,6 +87,9 @@ C++ primer原文：在C++语言中，当我们使用 基类的引用(或指针) 
 > 
 通过基类指针或基类引用做形参，当实参传入不同的派生类(或基类)的指针或引用，在函数内部触发 动态绑定，从而来 运行时 实现多态的。
 
+### 4.3 C++是如何实现动态绑定的？
+&emsp;&emsp; 通过虚函数。当我们使用指针或引用调用虚函数时，该调用将执行动态绑定，编译器将根据引用或指针所绑定的对象类型来决定调用对应版本的函数：该调用可能执行基类的版本(指针指向基类的对象)，也可能某个派生类的版本(指针指向派生类的对象)。
+
 
 
 
@@ -97,6 +100,103 @@ C++ primer原文：在C++语言中，当我们使用 基类的引用(或指针) 
 &emsp;
 &emsp;
 ## 5. 定义基类
+### 5.1 基类需要完成哪些工作？
+(1) 基类通常都应该定义一个虚析构函数，即使该函数不执行任何实际操作也是如此。
+(2) 基类必须将它的两种成员函数区分开来：一种是基类希望其派生类进行覆盖的函数；另一种是基类希望派生类直接继承而不要改变的函数。对于前者，基类应该将其定义为虚函数。
+```cpp
+class Quote {
+public:
+    Quote() = default; 
+    Quote(const std::string &book, double sales_price):
+                    bookNo(book), price(sales_price) { }
+    std::string isbn() const { return bookNo; }
+
+    // returns the total sales price for the specified number of items
+    // derived classes will override and apply different discount algorithms
+    virtual double net_price(std::size_t n) const 
+                { return n * price; }
+
+    // dynamic binding for the destructor
+    virtual ~Quote() = default; 
+private:
+    std::string bookNo; // ISBN number of this item
+protected:
+    double price = 0.0; // normal, undiscounted price
+};
+```
+
+
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 6. 定义派生类
+### 6.1 派生类需要做的
+(1) 派生类必须使用 类派生列表 明确指出继承的是哪个基类；
+(2) 派生类必须对对基类的虚函数进行重新声明和覆盖
+```cpp
+class Bulk_quote : public Quote { // Bulk_quote inherits from Quote
+public:
+    Bulk_quote() = default;
+    Bulk_quote(const std::string&, double, std::size_t, double);
+    // overrides the base version in order to implement the bulk purchase discount policy
+    double net_price(std::size_t) const override;
+private:
+    std::size_t min_qty = 0; // minimum purchase for the discount to apply
+    double discount = 0.0;  // fractional discount to apply
+};
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 覆盖(override)
+
+
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 单继承
+&emsp;&emsp; 大多数类都只继承自一个类，这种形式的继承被称为 单继承。
+
+
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 类派生列表中的 访问说明符 的作用是？
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 为什么需要`protected`？
+&emsp;&emsp; 派生类可以继承那些定义在基类中的成员，但派生类的成员函数不能访问基类的私有成员，若基类希望某些成员可以被派生类所访问但不能被其它用户访问，可以将该成员声明为`protected`
+| 关键字      | 作用                       |
+| ----------- | -------------------------- |
+| `public`    | 所有用户都能访问           |
+| `private`   | 仅友元和类本身可以访问     |
+| `protected` | 子类、友元和类本身可以访问 |
 
 
 
@@ -129,6 +229,10 @@ public:
 };
 ```
 
+### 虚函数 和 非虚函数的成员函数 有什么区别？
+&emsp; 差别主要在 该成员函数的解析过程发生在何时：
+> &emsp;&emsp; 虚函数 ：发生在 运行时；
+> &emsp;&emsp; 非虚函数：发生 在编译时
 
 
 
