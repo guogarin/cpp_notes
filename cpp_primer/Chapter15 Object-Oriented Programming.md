@@ -99,10 +99,19 @@ C++ primer原文：在C++语言中，当我们使用 基类的引用(或指针) 
 
 &emsp;
 &emsp;
-## 5. 定义基类
+## 5. 定义基类 和 派生类
 ### 5.1 基类需要完成哪些工作？
 (1) 基类通常都应该定义一个虚析构函数，即使该函数不执行任何实际操作也是如此。
 (2) 基类必须将它的两种成员函数区分开来：一种是基类希望其派生类进行覆盖的函数；另一种是基类希望派生类直接继承而不要改变的函数。对于前者，基类应该将其定义为虚函数。
+```cpp
+
+```
+
+### 5.2 派生类需要做哪些工作？
+(1) 派生类必须使用 类派生列表 明确指出继承的是哪个基类；
+(2) 派生类必须对对基类的虚函数进行重新声明和覆盖
+
+### 5.3 基类的派生类的实例
 ```cpp
 class Quote {
 public:
@@ -123,22 +132,8 @@ private:
 protected:
     double price = 0.0; // normal, undiscounted price
 };
-```
 
 
-
-
-
-
-
-
-&emsp;
-&emsp;
-## 6. 定义派生类
-### 6.1 派生类需要做的
-(1) 派生类必须使用 类派生列表 明确指出继承的是哪个基类；
-(2) 派生类必须对对基类的虚函数进行重新声明和覆盖
-```cpp
 class Bulk_quote : public Quote { // Bulk_quote inherits from Quote
 public:
     Bulk_quote() = default;
@@ -150,10 +145,20 @@ private:
     double discount = 0.0;  // fractional discount to apply
 };
 ```
+#### 5.3.1 在上面的例子中，类`Bulk_quote`有哪些成员？
+**自己定义的**：
+&emsp; 成员函数：`net_price()`
+&emsp; 数据成员：`discount`、`min_qty`
+**从基类继承的：**
+&emsp; 成员函数：`isbn()`
+&emsp; 数据成员：`bookNo`、`price`
+#### 5.3.2 
 
 
 
 
+## 基类中的私有成员会被继承吗？
+&emsp;&emsp; 这些私有成员的确是存在的，而且会被继承，只不过程序员无法通过正常的渠道访问到它们。
 
 
 &emsp;
@@ -171,8 +176,6 @@ private:
 &emsp;
 ## 单继承
 &emsp;&emsp; 大多数类都只继承自一个类，这种形式的继承被称为 单继承。
-
-
 
 
 
