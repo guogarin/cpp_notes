@@ -152,21 +152,7 @@ private:
 **从基类继承的：**
 &emsp; 成员函数：`isbn()`
 &emsp; 数据成员：`bookNo`、`price`
-#### 5.3.2 
-
-
-
-
-## 基类中的私有成员会被继承吗？
-&emsp;&emsp; 这些私有成员的确是存在的，而且会被继承，只不过程序员无法通过正常的渠道访问到它们。
-
-
-&emsp;
-&emsp;
-## 覆盖(override)
-
-
-
+**注意：**`bookNo成员`是基类的私有成员，虽然派生类`Bulk_quote`从基类继承了该成员，但是不能通过常规手段访问它。
 
 
 
@@ -174,7 +160,125 @@ private:
 
 &emsp;
 &emsp;
-## 单继承
+## 7. 派生类能否访问基类的私有成员？
+**不能直接访问：**
+&emsp;&emsp; 派生类是不能直接访问基类的`private`成员的，要是可以访问的话就不需要引入`protected`关键字了。
+来看下面的代码：
+```cpp
+class base{
+public:
+    base(int a = 6):sum(a) { };
+private:
+    int sum;
+};
+
+class son:public base{
+public:
+    son()= default;
+private:
+    int number;
+};
+
+
+int main(void)
+{
+    son s;
+    cout << s.sum << endl;
+    return 0;
+}
+```
+编译的时候报错了
+<div align="center"> <img src="./pic/chapter15/访问基类的私有成员.png"> </div>
+<center> <font color=black> <b> 图1 访问基类的私有成员的报错信息 </b> </font> </center>
+
+**但是可以通过成员函数来访问：**
+```cpp
+class base{
+public:
+    base(int a = 6):sum(a) { };
+    int get_sum(){return sum; }
+private:
+    int sum;
+};
+
+class son:public base{
+public:
+    son()= default;
+private:
+    int number;
+};
+
+
+int main(void)
+{
+    son s;
+    cout << "sum : " << s.get_sum() << endl;
+    return 0;
+}
+```
+输出结果：
+> sum : 6
+> 
+
+
+
+
+
+
+&emsp;
+&emsp;
+##  8. 如果基类中未提供访问私有成员的`public`函数，那在派生类中这些基类的私有成员是否 “存在“ 呢？还会不会被继承呢？？
+&emsp;&emsp; 其实在派生类中，这些基类的私有成员的确是存在的，而且会被继承，只不过程序员无法通过正常的渠道访问到它们。
+考察如下程序，通过一种特殊的方式访问了类的私有成员。
+```cpp
+class base{
+public:
+    base(int a = 6):sum(a) { };
+    int get_sum(){return sum; }
+private:
+    int sum;
+    void private_printer(){cout << "你好，我是基类的私有成员函数"<<endl;}
+};
+
+class son:public base{
+public:
+    son()= default;
+    void print_base(){
+        int* p = reinterpret_cast<int*>(this);//
+        cout << *p << endl;
+    }   
+    
+//    void usePrivateFunction(){
+//        void(*func)()=NULL;
+//        asm("mov eax,A::privateFunc;mov func,eax;");
+//        func();
+//    }
+private:
+    int number;
+};
+
+int main(void)
+{
+    son s;
+    s.print_base();
+    //s.usePrivateFunction();
+    return 0;
+}
+```
+输出结果：
+> 6
+> 
+由上面的结果可知：虽然`基类base`没有提供访问`私有成员变量sum`的公有方法，但是在`派生类son`的对象中包含了`基类的私有成员变量sum`
+&emsp;&emsp; 综上所述，类的私有成员一定存在，也一定被继承到派生类中。只不过收到C++语法的限制，在派生类中访问基类的私有成员只能通过间接的方式进行。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 9. 单继承
 &emsp;&emsp; 大多数类都只继承自一个类，这种形式的继承被称为 单继承。
 
 
@@ -184,16 +288,7 @@ private:
 
 &emsp;
 &emsp;
-## 类派生列表中的 访问说明符 的作用是？
-
-
-
-
-
-
-&emsp;
-&emsp;
-## 为什么需要`protected`？
+## 10. 为什么需要`protected`？
 &emsp;&emsp; 派生类可以继承那些定义在基类中的成员，但派生类的成员函数不能访问基类的私有成员，若基类希望某些成员可以被派生类所访问但不能被其它用户访问，可以将该成员声明为`protected`
 | 关键字      | 作用                       |
 | ----------- | -------------------------- |
@@ -201,6 +296,15 @@ private:
 | `private`   | 仅友元和类本身可以访问     |
 | `protected` | 子类、友元和类本身可以访问 |
 
+
+
+
+
+
+&emsp;
+&emsp;
+## 11. 派生类及其对象 向 基类 的类型转换
+### 11.1 为什么  派生类及其对象 可以向 基类 转换？
 
 
 
@@ -237,22 +341,47 @@ public:
 > &emsp;&emsp; 虚函数 ：发生在 运行时；
 > &emsp;&emsp; 非虚函数：发生 在编译时
 
+### 如果派生类没有覆盖它继承的虚函数 会发生什么？
+&emsp;&emsp; 如果派生类没有覆盖其基类中的某个虚函数，则该虚函数的行为类似于其它的普通成员，即派生类会直接继承其在基类中的版本。
+
+#### 如何覆盖基类的虚函数？
+(1) 派生类可以在它覆盖的函数前使用`virtual`关键字，但这不是必须的
+(2) C++11允许派生类显式的注明它使用某个成员函数覆盖它继承的虚函数，即在形参列表后面、const成员函数的const关键字后面、或者引用成员函数的引用限定符后面 添加一个关键字`override`
 
 
+
+&emsp;
+&emsp;
+## 覆盖(override)
+
+```cpp
+
+```
+
+
+&emsp;
+&emsp;
+## 类派生列表中的 访问说明符 的作用是？
+
+```cpp
+
+```
 
 
 ### 虚函数、动态绑定、运行时多态之间的关系
 https://blog.csdn.net/iicy266/article/details/11906509
 
 
-
+## C++ 类在内存中的存储方式
+https://zhuanlan.zhihu.com/p/103384358
+https://zhuanlan.zhihu.com/p/103490276
 
 
 &emsp;
 &emsp;
 ## 参考文献
-
-
+1. [C++中基类私有成员会被继承吗](https://cloud.tencent.com/developer/article/1177138)
+2. [C++ 类在内存中的存储方式](https://zhuanlan.zhihu.com/p/103384358)
 ```cpp
 
 ```
