@@ -31,6 +31,9 @@
 ### 3.2 基类、派生类 分别负责定义哪些成员？
 &emsp;&emsp; 基类负责定在在层次关系中所有类共同拥有的成员，而每个派生类定义各自特有的成员。
 
+### 3.3 基类的哪些成员会被派生类继承？
+&emsp;&emsp; 每个类都会继承它直接基类的所有成员。
+
 
 
 
@@ -337,7 +340,7 @@ p = &bulk; // p 是指向基类的指针，但也能让它指向派生类对象�
 Quote &r = bulk; // r 是指向指向基类的引用，这里的结果是 r指向 派生类对象bulk 中的 基类部分
 ```
 
-### 13.3 如何把一个从一个基类 转换为 它的派生类？
+### 12.3 如何把一个从一个基类 转换为 它的派生类？
 &emsp;&emsp;.TODO: c++ primer P534
 
 
@@ -364,9 +367,99 @@ Bulk_quote(const std::string& book, double p,
 > (4) 构造函数`Bulk_quote`的 函数体(这里是空的)；
 > 
 ### 14.2 如果派生类没有显示调用基类的构造函数对继承自基类成员进行初始化 会发生什么？
-该派生类对象的基类部分将进行默认初始化。
+&emsp;&emsp; 该派生类对象的基类部分将进行默认初始化。
 
 
+
+
+
+
+&emsp;
+&emsp;
+## 15. 基类中的静态成员
+### 15.1 静态成员和数量 和 派生类的数量有关吗？
+&emsp;&emsp; 没有，如果基类定义了一个静态成员，则在整个继承体系中 只存在该成员的唯一定义，不论从基类中派生出多少个派生类，对于每个静态成员来说都只存在唯一的实例。
+
+### 15.2 派生类如何访问基类中的静态成员？
+&emsp;&emsp; 对于基类中的静态成员，派生类可以通过基类来访问 也可以通过派生类来访问：
+```cpp
+class Base {
+public:
+    static void statmem();
+};
+
+class Derived : public Base {
+    void f(const Derived&);
+};
+
+
+void Derived::f(const Derived &derived_obj)
+{
+    Base::statmem(); // 通过基类访问
+    Derived::statmem(); // 派生类继承了基类的statmem()函数
+    // ok: derived objects can be used to access static from base
+    derived_obj.statmem();  // 通过基类对象来访问statmem()函数
+    statmem();              // 通过 this指针访问
+}
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 16. 如何对派生类进行前向声明？
+&emsp;&emsp; 派生类的前向声明和其它类一样，但不能包含它的派生列表：
+```cpp
+class Bulk_quote: public Quote; // 错误，不能包含派生列表
+class Bulk_quote;               // 正确
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 17. 被用作基类的类需要满足什么条件？
+&emsp;&emsp; 被用作基类的类 必须已经被定义，而非仅仅声明：
+```cpp
+class Quote;  // 声明Quote类
+
+// 错误，Quote类仅仅是被声明了，不能用它作基类
+class Bulk_quote: public Quote{
+    // 类的成员...
+}; 
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 18. 什么是 直接基类(direct base) 和 间接基类(indirect base)？
+&emsp;直接基类出现在派生列表中，而间接基类由派生类通过其直接基类继承而来。来看下面的例子吧：
+```cpp
+class Base { /*...*/ }
+class D1: public Base { /*...*/ }
+class D2: public D2 { /*...*/ }
+```
+在上面的继承关系中，`Base`是 `D1`的直接基类，同时也是`D2`的间接基类。
+&emsp;&emsp; 每个类都会继承直接基类的所有成员。对于一个最终基类来说
+
+ 
+
+
+
+
+```cpp
+
+```
 
 ## 虚函数(virtual function)
 ### 3.3 什么是虚函数(virtual function)
@@ -404,6 +497,10 @@ public:
 #### 如何覆盖基类的虚函数？
 (1) 派生类可以在它覆盖的函数前使用`virtual`关键字，但这不是必须的
 (2) C++11允许派生类显式的注明它使用某个成员函数覆盖它继承的虚函数，即在形参列表后面、const成员函数的const关键字后面、或者引用成员函数的引用限定符后面 添加一个关键字`override`
+
+
+
+## 基类如何强制派生类一定要覆盖某个函数？
 
 
 
