@@ -29,7 +29,7 @@
 &emsp;&emsp; 通过继承(inheritance)联系在一起的类构成一种层次关系。通常在层次关系的根部有一个基类(base class)，其它类都是 直接或间接地 从基类继承而来，这些继承而得到的类称为派生类(derived class)。
 
 ### 3.2 基类、派生类 分别负责定义哪些成员？
-&emsp;&emsp; 基类负责定在在层次关系中所有类共同拥有的成员，而每个派生类定义各自特有的成员。
+&emsp;&emsp; 基类负责定义在层次关系中所有类共同拥有的成员，而每个派生类定义各自特有的成员。
 
 ### 3.3 基类的哪些成员会被派生类继承？
 &emsp;&emsp; 每个类都会继承它直接基类的所有成员。
@@ -65,7 +65,7 @@ double print_total(ostream &os, const Quote &item, size_t n)
 {
     // 根据 item形参的类型来确定调用  Quote::net_price() 还是 Bulk_quote::net_price()
     double ret = item.net_price(n);
-    os << "ISBN: " << item.isbn() // 调用的是基类的isbn()，即 Quote::isbn
+    os << "ISBN: " << item.isbn() // 调用的是基类的isbn()，即 Quote::isbn+
         << " # sold: " << n << " total due: " << ret << endl;
     return ret;
 }
@@ -106,9 +106,6 @@ C++ primer原文：在C++语言中，当我们使用 基类的引用(或指针) 
 ### 5.1 基类需要完成哪些工作？
 (1) 基类通常都应该定义一个虚析构函数，即使该函数不执行任何实际操作也是如此。
 (2) 基类必须将它的两种成员函数区分开来：一种是基类希望其派生类进行覆盖的函数；另一种是基类希望派生类直接继承而不要改变的函数。对于前者，基类应该将其定义为虚函数。
-```cpp
-
-```
 
 ### 5.2 派生类需要做哪些工作？
 (1) 派生类必须使用 类派生列表 明确指出继承的是哪个基类；
@@ -450,7 +447,28 @@ class D1: public Base { /*...*/ }
 class D2: public D2 { /*...*/ }
 ```
 在上面的继承关系中，`Base`是 `D1`的直接基类，同时也是`D2`的间接基类。
-&emsp;&emsp; 每个类都会继承直接基类的所有成员。对于一个最终基类来说
+&emsp;&emsp; 每个类都会继承直接基类的所有成员。对于一个最终基类来说，他会继承其直接基类的成员，而该直接基类又包含了其基类的成员，以此类推至继承关系的最顶端。以此，最终的派生类将包含它直接基类的子对象以及每个简介基类的子对象。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 19. 如何一个类不希望自己被继承，应该如何做？
+&emsp;&emsp; 在C++11中，提供了防止继承的方法：在类名后面加上`final`关键字
+```cpp
+class NoDerired final { /* 类的定义*/ }; // NoDerired 不能作为基类
+class Base { /* */};
+class Last final : Base { /* */ };  // Last 不能作为基类
+
+class Bad : NoDerired { /* */ };    // 错误，NoDerired 是final的，以此不能作为基类
+class Bad2 : Last { /* */ };        // 错误，Last 是final的，以此不能作为基类
+```
+
+
+
 
  
 
