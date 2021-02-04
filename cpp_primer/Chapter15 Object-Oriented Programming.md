@@ -59,12 +59,21 @@
     - [26.6 虚函数 和 动态绑定 的关系是？](#266-虚函数-和-动态绑定-的关系是)
     - [26.7 在什么时候可以确定 调用的是哪个版本的虚函数 ？](#267-在什么时候可以确定-调用的是哪个版本的虚函数-)
     - [26.8 `override`关键字 有何作用？](#268-override关键字-有何作用)
+    - [26.8.1 规则](#2681-规则)
+    - [26.8.2 实际应用场景](#2682-实际应用场景)
+    - [26.9 基类如果不希望自己的某个成员函数被派生类重写，应该怎么做？](#269-基类如果不希望自己的某个成员函数被派生类重写应该怎么做)
+    - [26.10 虚函数 和 默认实参](#2610-虚函数-和-默认实参)
+      - [26.10.1 使用虚函数的默认实参时需要注意什么？](#26101-使用虚函数的默认实参时需要注意什么)
+      - [26.10.2 为什么会发生上述的这种情况呢？](#26102-为什么会发生上述的这种情况呢)
+      - [26.10.3 虚函数使用 默认实参的时候需要注意什么？](#26103-虚函数使用-默认实参的时候需要注意什么)
+    - [26.11 在派生类重写的函数中，如果要调用基类中相应的虚函数，应该怎么做？](#2611-在派生类重写的函数中如果要调用基类中相应的虚函数应该怎么做)
     - [基类如何强制派生类一定要覆盖某个函数？](#基类如何强制派生类一定要覆盖某个函数)
   - [27. 多态(polymorphism)](#27-多态polymorphism)
     - [27.1 什么是多态？](#271-什么是多态)
     - [27.2 C++的多态是怎么实现的？](#272-c的多态是怎么实现的)
     - [27.3 动态多态 发生的条件？](#273-动态多态-发生的条件)
   - [28. 在一个类中，哪些函数可以在编译时确定？哪些必须则运行时才能确定？](#28-在一个类中哪些函数可以在编译时确定哪些必须则运行时才能确定)
+  - [30 `final`关键字](#30-final关键字)
   - [覆盖(override)](#覆盖override)
   - [类派生列表中的 访问说明符 的作用是？](#类派生列表中的-访问说明符-的作用是)
     - [虚函数、动态绑定、运行时多态之间的关系](#虚函数动态绑定运行时多态之间的关系)
@@ -718,6 +727,11 @@ public:
 &emsp;&emsp; **如果通过指针或引用来调用一个虚函数**，则会发生动态绑定，只有在运行时才能确定调用的是哪个版本，编译时是不能确定的。
 
 ### 26.8 `override`关键字 有何作用？
+### 26.8.1 规则
+(1) `override`关键字 只能用于 虚函数
+(2) `override`关键字 用于派生类中(注意是派生类！)，假如派生类的一个成员函数`func()`被声明为`override`，但基类中并没有这个`func()`函数，那程序将报错。
+
+### 26.8.2 实际应用场景
 &emsp;&emsp; 设想这样一种情况：在派生类中定义了一个函数，这个函数和基类中的一个虚函数名字相同但形参列表不同，这样是合法的，编译器将认为新定义的这个函数与基类中原有的函数是相互独立的，此时派生类的函数并没有覆盖掉基类中的版本，而我们原本可能是希望派生类能覆盖掉基类中的虚函数，但是一不小心把形参列表给弄错了。
 ```cpp
 class base {
@@ -729,11 +743,128 @@ class derived:public base{
     void test(int int); 
 };
 ```
-&emsp;&emsp; 上面这样的错误是很难发现的，因此在C++11中我们可以使用`override`关键字来说活命派生类中的虚函数，这么做的好处就是使得程序员的意图更为清晰的同时让编译器为我们发现一些错误。
+&emsp;&emsp; 上面这样的错误是很难发现的，因此在C++11中我们可以使用`override`关键字来说明派生类中的虚函数，这么做的好处就是使得程序员的意图更为清晰的同时，让编译器为我们发现一些错误。
 &emsp;&emsp; 如果我们使用 `override`关键字 标记了一个函数，而该函数没有覆盖一个已存在的虚函数，则编译器将报错：
 ```cpp
+struct B {
+    virtual void f1(int) const;
+    virtual void f2();
+    void f3();
+};
+
+// 注意，overr关键字是出现在派生类中的
+struct D1 : B{
+    virtual void f1(int) const override;  // 正确，f1和基类B中的f1匹配
+    virtual void f2(int) override;  // 错误，基类中没有形如 f2(int) 的函数（基类中的f2和它同名，但是形参列表不一样，和重载类似。）
+    void f3() override;             // 错误，f3不是虚函数
+    void f4() override;             // B中没有名为f4()的函数
+};
+```
+
+### 26.9 基类如果不希望自己的某个成员函数被派生类重写，应该怎么做？
+&emsp;&emsp; 将该成员函数声明为`final`即可：
+```cpp
+struct D2 : B {
+    // inherits f2() and f3() from B and overrides f1(int)
+    void f1(int) const final; // subsequent classes can't override f1(int)
+};
+struct D3 : D2 {
+    void f2();                  // ok: overrides f2 inherited from the indirect base,B
+    void f1(int) const;         // error: D2 declared f2 as final
+};
+```
+
+### 26.10 虚函数 和 默认实参
+#### 26.10.1 使用虚函数的默认实参时需要注意什么？
+&emsp;&emsp; 像其他任何函数一样，虚函数也可以有默认实参。通常，如果有用在给定调用中的默认实参值，**该值将在编译时确定。** 如果一个调用省略了具有默认值的实参，则所用的值由调用该函数的类型定义，与对象的动态类型无关，也就是说在通过基类的引用或指针调用虚函数时，默认实参为在基类虚函数中指定的值。
+```cpp
+class base{
+public:
+    virtual void printer(string s = "base") { 
+        cout << s << endl;
+    }
+};
+
+class derived : public base{
+public:
+    virtual void printer(string s = "derived") override{ 
+        cout << s <<" I am the printer function of derived class." << endl;
+    }
+};
+
+
+int main()
+{
+    base b;
+    derived d;
+
+    b.printer();
+    d.printer();
+
+    base *pb = &d; //  pb的静态类型为base，动态类型为derived
+    pb->printer();
+
+    derived *pd = &d; //pd的静态类型和动态类型都是derived
+    pd->printer();
+
+
+    return 0;
+}
+```
+**运行结果：**
+```
+base
+derived I am the printer function of derived class.
+base I am the printer function of derived class.
+derived I am the printer function of derived class.
+```
+**分析：**
+(1) `pb->printer();`
+&emsp;&emsp; 因为`pb`的静态类型为`base`，动态类型为`derived`，因此语句`pb->printer();`调用的是 派生类版本的`printer()`，但是却使用的是 基类版本的`printer()`的默认实参，
+(2) `pd->printer();`
+&emsp;&emsp; `pd`的静态类型和动态类型都是`derived`，因此使用的是派生类中的默认实参
+这就说明 虚函数的默认实参只和静态类型有关，与动态类型无关
+
+#### 26.10.2 为什么会发生上述的这种情况呢？
+&emsp;&emsp; 通常，如果有用在给定调用中的默认实参值，**该值将在编译时确定。**，而动态类型是在运行时才能确定的，因此函数的默认实参只和静态类型有关。
+
+#### 26.10.3 虚函数使用 默认实参的时候需要注意什么？
+&emsp;&emsp; 基类、派生类中定义的默认实参最好一致。
+
+
+### 26.11 在派生类重写的函数中，如果要调用基类中相应的虚函数，应该怎么做？
+&emsp;&emsp; 使用作用域运算符，要不然就是调用自己，这会导致无限递归：
+```cpp
+class base{
+public:
+    virtual void printer(string s = "base"){ cout << s << endl;}
+};
+
+class derived : public base{
+public:
+    virtual void printer(string s = "derived") override{ 
+        base::printer(); //调用基类的 printer()
+        cout << "derived" << endl;
+    }   
+};
+
+
+int main()
+{
+    derived d;
+    d.printer();
+
+    return 0;
+}
 
 ```
+**运行结果：**
+```
+[alpha@localhost code]$ ./test.o 
+base
+derived
+```
+
 
 
 ### 基类如何强制派生类一定要覆盖某个函数？
@@ -773,6 +904,18 @@ class derived:public base{
 **总结一下就是：** 用 指针(或引用) 调用虚函数时，必须在运行时才能确定调用的基类的版本还是派生类的版本。其它的都可以在编译时确定。
 
 
+
+
+
+
+&emsp;
+&emsp;
+## 30 `final`关键字
+两个作用：
+> (1) 禁用继承
+> (2) 禁用重写
+> 
+详情见前面的笔记
 
 
 
