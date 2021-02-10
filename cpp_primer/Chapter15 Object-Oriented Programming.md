@@ -83,6 +83,9 @@
     - [32.2 抽象基类](#322-抽象基类)
       - [32.2.1 什么是 抽象基类？](#3221-什么是-抽象基类)
       - [32.2.2 抽象基类 一般用来做什么？](#3222-抽象基类-一般用来做什么)
+      - [32.2.3 抽象基类 和 普通的类有何区别？](#3223-抽象基类-和-普通的类有何区别)
+    - [32.3 在`Quote` 和 `Bulk_quote` 之间加一个抽象基类`Disc_quote`来表示](#323-在quote-和-bulk_quote-之间加一个抽象基类disc_quote来表示)
+  - [33 派生类的友元](#33-派生类的友元)
   - [覆盖(override)](#覆盖override)
   - [类派生列表中的 访问说明符 的作用是？](#类派生列表中的-访问说明符-的作用是)
     - [虚函数、动态绑定、运行时多态之间的关系](#虚函数动态绑定运行时多态之间的关系)
@@ -956,7 +959,46 @@ public:
 #### 32.2.1 什么是 抽象基类？
 &emsp;&emsp; 含有（或未经覆盖直接继承）纯虚函数的类 是抽象基类。
 #### 32.2.2 抽象基类 一般用来做什么？
-&emsp;&emsp; 抽象基类一般用来
+&emsp;&emsp; 抽象基类一般用来定义接口，后续的其它类可以覆盖该接口。
+#### 32.2.3 抽象基类 和 普通的类有何区别？
+&emsp;&emsp; 我们不能创建一个抽象基类的对象。
+
+### 32.3 在`Quote` 和 `Bulk_quote` 之间加一个抽象基类`Disc_quote`来表示
+```cpp
+// class to hold the discount rate and quantity
+// derived classes will implement pricing strategies using these data
+class Disc_quote : public Quote {
+public:
+    Disc_quote() = default;
+    // 先调用基类的构造函数Quote()对基类成员进行初始化，随后初始化自己的成员。
+    Disc_quote(const std::string& book, double price,
+                std::size_t qty, double disc):
+                    Quote(book, price), quantity(qty), discount(disc) { }
+    double net_price(std::size_t) const = 0;
+protected:
+    std::size_t quantity = 0; // purchase size for the discount to apply
+    double discount = 0.0;      // fractional discount to apply
+};
+
+
+class Bulk_quote : public Disc_quote {
+public:
+    Bulk_quote() = default;
+    Bulk_quote(const std::string& book, double price,
+                std::size_t qty, double disc): Disc_quote(book, price, qty, disc) { }
+    // overrides the base version to implement the bulk purchase discount policy
+    double net_price(std::size_t) const override;
+};
+```
+
+
+
+
+&emsp;
+&emsp;
+## 33 派生类的友元
+
+
 
 
 
