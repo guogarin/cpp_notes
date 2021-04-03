@@ -48,7 +48,11 @@
     - [23.1 `Quote item(bulk);`](#231-quote-itembulk)
     - [23.2 `item = bulk;`](#232-item--bulk)
     - [23.3 总结](#233-总结)
-  - [24. 当使用派生类为 一个基类对象 初始化(或赋值) 的时候 会发生什么？](#24-当使用派生类为-一个基类对象-初始化或赋值-的时候-会发生什么)
+  - [24 基类、派生类 对象之间的初始化和赋值](#24-基类派生类-对象之间的初始化和赋值)
+    - [24.1 基类和派生类 对象 之间可以互相赋值吗？为什么？](#241-基类和派生类-对象-之间可以互相赋值吗为什么)
+      - [24.1.1 行不行？](#2411-行不行)
+      - [24.1.2 为什么？](#2412-为什么)
+    - [24.2 当使用派生类对 一个基类对象 初始化(或赋值) 的时候 会发生什么？原理是？](#242-当使用派生类对-一个基类对象-初始化或赋值-的时候-会发生什么原理是)
   - [25.存在继承关系的类型之间的转换规则是怎样的？](#25存在继承关系的类型之间的转换规则是怎样的)
   - [26. 虚函数(virtual function)](#26-虚函数virtual-function)
     - [26.1 什么是虚函数(virtual function)](#261-什么是虚函数virtual-function)
@@ -190,7 +194,7 @@ print_total(cout, bulk, 20); // 调用 Bulk_quote::net_price()
 C++ primer原文：在C++语言中，当我们**使用 基类的引用(或指针) 调用一个虚函数时**将发生动态绑定。
 &emsp;&emsp; 简单地说，虚函数是动态绑定的基础；动态绑定是实现运行时多态的基础。而要触发 动态绑定，需满足如下两个条件：
 > (1)  只有虚函数才能进行动态绑定，非虚函数不进行动态绑定。
-> (2)  必须通过 基类类型的引用或指针 进行函数调用。
+> (2)  必须通过 **基类类型**的引用或指针 进行函数调用。
 > 
 通过基类指针或基类引用做形参，当实参传入不同的派生类(或基类)的指针或引用，在函数内部触发 动态绑定，从而来 运行时 实现多态的。
 
@@ -681,8 +685,93 @@ item = bulk; // calls Quote::operator=(const Quote&)
 
 &emsp;
 &emsp;
-## 24. 当使用派生类为 一个基类对象 初始化(或赋值) 的时候 会发生什么？
+## 24 基类、派生类 对象之间的初始化和赋值
+### 24.1 基类和派生类 对象 之间可以互相赋值吗？为什么？
+#### 24.1.1 行不行？
+&emsp;&emsp; 我们可以将 派生类对象 赋给 基类对象，但反过来却不行。我们写一段代码来验证一下：
+```cpp
+class base{
+public:
+    base()=default;
+    base(const int a):num(a) {}
+    virtual void print(){cout << num << endl;}
+protected:
+    int num;
+};
+
+class derived : public base{
+public:
+    derived()=default;
+    derived(const int a, const double p):base(a),price(p) { } 
+    void print(){cout << num << " " << price << endl;}
+private:
+    double price;
+};
+
+
+int main()
+{
+    base b(2);
+    b.print();
+
+    derived d(3, 3.2);
+    d.print();
+
+    b=d; // 将派生类对象赋给基类对象
+    b.print();
+
+    return 0;
+}
+```
+**运行结果：**
+```
+2
+3 3.2
+3
+```
+从上述结果可得治，在将 派生类对象赋给基类对象后，调用的`print()`是基类的版本，这是因为在赋值的过程中，派生类对象 的派生类部分被忽略了，只保留了基本部分，所以输出的结果是`3`，而不是`3 3.2`。
+我们对上面的代码做一点修改，将`b=d`改为`d=b`：
+```cpp
+{
+    base b(2);
+    b.print();
+
+    derived d(3, 3.2);
+    d.print();
+
+    d=b; // 将基类类对象赋给派生类对象
+    b.print();
+
+    return 0;
+}
+```
+**运行结果：**
+编译的时候直接报错：
+```
+test.cpp: In function ‘int main()’:
+test.cpp:32:7: error: no match for ‘operator=’ (operand types are ‘derived’ and ‘base’)
+     d=b;
+       ^
+test.cpp:14:7: note: candidate: ‘derived& derived::operator=(const derived&)’
+ class derived : public base{
+       ^~~~~~~
+test.cpp:14:7: note:   no known conversion for argument 1 from ‘base’ to ‘const derived&’
+test.cpp:14:7: note: candidate: ‘derived& derived::operator=(derived&&)’
+test.cpp:14:7: note:   no known conversion for argument 1 from ‘base’ to ‘derived&&’
+```
+这表示我们无法将一个基类对象 赋给 一个派生类对象
+#### 24.1.2 为什么？
+&emsp;&emsp; 我们都知道，当使用赋值运算符`=`的时候，其实是调用左侧对象的赋值运算符来完成赋值的，就拿上面写的测试代码来举例：
+① `b=d; // 将派生类对象赋给基类对象` 为什么 **可以**？
+&emsp;&emsp; 此时其实调用的是 基类对象`b` 的拷贝构造函数 `base& base::operator=(const base&)`来完成赋值的，在赋值的时候会将 派生类对象`d` 转换为 基类类型`base`，这个类型转换时没有问题的，因此可以将 派生类对象 赋给 基类对象。
+② `d=b; // 将基类类对象赋给派生类对象` 为什么 **不可以**？
+&emsp;&emsp; 此时其实调用的是 派生类对象`d` 的拷贝构造函数 `derived& derived::operator=(const derived&)`来完成赋值的，这意味着要将 基类对象`b` 转换为 派生类对象，而我们知道基类对象是不能转换为派生类对象的，因此编译时将报错。
+
+### 24.2 当使用派生类对 一个基类对象 初始化(或赋值) 的时候 会发生什么？原理是？
+**① 会发生什么？**
 &emsp;&emsp; 当我们使用派生类为 一个基类对象 初始化(或赋值) 的时候，只有该派生类的基类部分会被拷贝、移动或赋值，它的派生类部分将会被忽略。
+**② 原理**
+&emsp;&emsp; 调用基类的拷贝构造函数来完成赋值。
 
 
 
