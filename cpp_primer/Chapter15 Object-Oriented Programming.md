@@ -11,6 +11,7 @@
     - [4.2 什么时候会发生动态绑定？](#42-什么时候会发生动态绑定)
     - [4.3 C++是如何实现动态绑定的？](#43-c是如何实现动态绑定的)
     - [4.4 如果发生动态绑定，什么时候可以确定 调用的是哪个版本的虚函数？](#44-如果发生动态绑定什么时候可以确定-调用的是哪个版本的虚函数)
+    - [4.5 一个说明动态绑定的例子](#45-一个说明动态绑定的例子)
   - [5. 定义基类 和 派生类](#5-定义基类-和-派生类)
     - [5.1 基类需要完成哪些工作？](#51-基类需要完成哪些工作)
     - [5.2 派生类需要做哪些工作？](#52-派生类需要做哪些工作)
@@ -73,6 +74,8 @@
       - [25.10.2 为什么会发生上述的这种情况呢？](#25102-为什么会发生上述的这种情况呢)
       - [25.10.3 虚函数使用 默认实参的时候需要注意什么？](#25103-虚函数使用-默认实参的时候需要注意什么)
     - [25.11 在派生类重写的函数中，如果要调用基类中相应的虚函数，应该怎么做？](#2511-在派生类重写的函数中如果要调用基类中相应的虚函数应该怎么做)
+    - [25.12 为什么 基类和派生类中的虚函数必须有相同的形参列表？](#2512-为什么-基类和派生类中的虚函数必须有相同的形参列表)
+    - [25.13 对于下面的几个类的定义，后面的这些语句正确吗？正确的话该语句调用的是哪个函数？](#2513-对于下面的几个类的定义后面的这些语句正确吗正确的话该语句调用的是哪个函数)
   - [27. 多态(polymorphism)](#27-多态polymorphism)
     - [27.1 什么是多态？](#271-什么是多态)
     - [27.2 C++的多态是怎么实现的？](#272-c的多态是怎么实现的)
@@ -107,7 +110,14 @@
     - [34.7 友元关系可以继承吗？](#347-友元关系可以继承吗)
   - [35. 如何改变个别成员的可访问性？](#35-如何改变个别成员的可访问性)
   - [36. 在继承一个类的时候，默认是什么继承？](#36-在继承一个类的时候默认是什么继承)
-  - [37.](#37)
+  - [37. 当发生 派生类->基类 的转换后，转换后的基类能否访问派生类成员？为什么？](#37-当发生-派生类-基类-的转换后转换后的基类能否访问派生类成员为什么)
+    - [37.1 能不能？](#371-能不能)
+    - [37.2 为什么？](#372-为什么)
+  - [38. 当 基类和派生类 中有同名的成员时会发生什么？](#38-当-基类和派生类-中有同名的成员时会发生什么)
+  - [39. 我们知道 派生类会隐藏同名的基类成员，那如何在派生类中使用基类中该同名的成员呢？](#39-我们知道-派生类会隐藏同名的基类成员那如何在派生类中使用基类中该同名的成员呢)
+  - [40. 如果派生类中有一个和基类同名 但参数列表不一样的函数，那基类中的函数在该派生类中是否可见？为什么？](#40-如果派生类中有一个和基类同名-但参数列表不一样的函数那基类中的函数在该派生类中是否可见为什么)
+  - [41. C++类中的函数调用解析过程是怎样的？](#41-c类中的函数调用解析过程是怎样的)
+  - [42.](#42)
     - [基类如何强制派生类一定要覆盖某个函数？](#基类如何强制派生类一定要覆盖某个函数)
   - [覆盖(override)](#覆盖override)
   - [类派生列表中的 访问说明符 的作用是？](#类派生列表中的-访问说明符-的作用是)
@@ -213,6 +223,7 @@ C++ primer原文：在C++语言中，当我们**使用 基类的引用(或指针
 > (2)  必须通过 **基类类型**的引用或指针 进行函数调用。
 > 
 通过基类指针或基类引用做形参，当实参传入不同的派生类(或基类)的指针或引用，在函数内部触发 动态绑定，从而来 运行时 实现多态的。
+**此时可以结合动态类型和静态类型来复习。**
 
 ### 4.3 C++是如何实现动态绑定的？
 &emsp;&emsp; 通过虚函数。当我们**使用指针或引用调用虚函数时**，该调用将执行动态绑定，编译器将根据引用或指针所绑定的对象类型来决定调用对应版本的函数：该调用可能执行基类的版本(指针指向基类的对象)，也可能某个派生类的版本(指针指向派生类的对象)。
@@ -220,6 +231,37 @@ C++ primer原文：在C++语言中，当我们**使用 基类的引用(或指针
 ### 4.4 如果发生动态绑定，什么时候可以确定 调用的是哪个版本的虚函数？
 &emsp;&emsp; 如果发生动态绑定，则只有在运行时才能确定调用的是 基类版本的函数 还是 派生类版本的函数，编译时是不能确定的。
 
+### 4.5 一个说明动态绑定的例子
+```cpp
+class Base{
+public:
+    virtual void func() { cout << "I am in base." << endl;}
+};
+
+class Derived : public Base{
+public:
+    virtual void func() { cout << "I am in Derived." << endl;}
+};
+
+int main()
+{
+    Base *pb, b;
+    Derived d;
+    
+    pb = &b;        // 此时 pb 的动态类型和静态类型一致，都是Base
+    pb -> func();   // 静态绑定，运行的是 Base::func()
+
+    pb = &d;        // 此时 pb 的动态类型为Derived，静态类型为Base，它们不一致
+    pb -> func();   // 引发动态绑定，调用的是 Derived::func()
+
+    return 0;
+}
+```
+编译后，运行结果为：
+```
+I am in base.
+I am in Derived.
+```
 
 
 
@@ -619,7 +661,6 @@ class Bad2 : Last { /* */ };        // 错误，Last 是final的，以此不能�
 
 ### 20.3 什么情况下一个表达式(变量) 的 动态类型 和 静态类型 会不一样？
 &emsp;&emsp; 只有当我们的表达式使用的是指针或引用时，对象的静态类型和动态类型才有可能不同。
-
 
 ### 20.4 为什么需要区分 变量的 动态类型 和 静态类型？
 &emsp;&emsp; 正如前面提到的，大多数情况下，一个对象的静态类型和动态类型都是相等的，而且就算其静态类型和动态类型不相等，也不一定会使动态类型发挥威力，那到底什么时候一个对象（变量）的动态类型能发挥其威力呢？
@@ -1035,6 +1076,117 @@ base
 derived
 ```
 
+### 25.12 为什么 基类和派生类中的虚函数必须有相同的形参列表？
+&emsp;&emsp; 假如 基类和派生类 中的虚函数 接收的实参不同，则我们就无法通过基类的引用或指针调用派生类的虚函数了，来看下面的代码：
+```cpp
+class Base {
+public:
+    virtual int fcn() {cout << "I'm fcn() from Base" << endl;}
+};
+
+class D1 : public Base {
+public:
+    int fcn(int) { cout << "I'm fcn() from D1, and I take one int type parameter." << endl;} 
+    virtual void f2(); // new virtual function that does not exist in Base
+};
+
+int main()
+{
+    D1 d;
+    d.fcn();
+    d.fcn(1);
+
+    return 0;
+}
+```
+编译上述代码，报错如下：
+```
+test.cpp:15:9: note: int D1::fcn(int)
+     int fcn(int) { cout << "I'm fcn() from D1, and I take one int type parameter." << endl;} 
+         ^
+test.cpp:15:9: note:   candidate expects 1 argument, 0 provided
+```
+将`main()`函数修改如下：
+```cpp
+int main()
+{
+    D1 d;
+    Base* b = &d;
+    b->fcn();
+
+    return 0;
+}
+```
+成功编译，输出如下：
+``` I'm fcn() from Base ```
+
+通过上面两个实例我们可以得知：
+① 显然`D1`没有覆盖(override)`Base::fcn()`，因为`D1::fcn()`与`Base::fcn()`的形参列表不同。
+② 实际上，因为`D1::fcn()`与`Base::fcn()`的函数名相同，因此`D1`对 `Base::fcn()` 进行了隐藏。
+③ 派生类`D1`中其实函数两个`fcn()`函数：
+> `Base::fcn()`：直接从基类继承的（因为未在派生类中覆盖的虚函数将被直接继承，但因为派生类`D1`已经定义了一个`fcn()`函数了，这导致`Base::fcn()`被`D1::fcn()`隐藏了）
+> `D1::fcn()`：自己定义的
+但我们不能通过 派生类`D1`的对象 访问 基类的`fcn()`函数，因为基类的`fcn()`函数被`D1::fcn()`隐藏了，但进行动态绑定的时候我们是可以访问`Base::fcn()`的。
+
+### 25.13 对于下面的几个类的定义，后面的这些语句正确吗？正确的话该语句调用的是哪个函数？
+```cpp
+class Base {
+public:
+    virtual int fcn();
+};
+class D1 : public Base {
+public:
+    // hides fcn in the base; this fcn is not virtual
+    // D1 inherits the definition of Base::fcn()
+    int fcn(int); // parameter list differs from fcn in Base
+    virtual void f2(); // new virtual function that does not exist in Base
+};
+
+class D2 : public D1 {
+public:
+    int fcn(int); // nonvirtual function hides D1::fcn(int)
+    int fcn(); // overrides virtual fcn from Base
+    void f2(); // overrides virtual f2 from D1C++ Primer, Fifth Edition
+};
+
+
+Base bobj; D1 d1obj; D2 d2obj;
+
+Base *bp1 = &bobj, *bp2 = &d1obj, *bp3 = &d2obj;
+bp1->fcn();  
+bp2->fcn(); 
+bp3->fcn(); 
+
+D1 *d1p = &d1obj; D2 *d2p = &d2obj;
+bp2->f2(); 
+d1p->f2(); 
+d2p->f2(); 
+
+Base *p1 = &d2obj; D1 *p2 = &d2obj; D2 *p3 = &d2obj;
+p1->fcn(42); 
+p2->fcn(42); 
+p3->fcn(42); 
+```
+**上面的语句调用的函数如下：**
+```cpp
+Base bobj; D1 d1obj; D2 d2obj;
+
+Base *bp1 = &bobj, *bp2 = &d1obj, *bp3 = &d2obj;
+bp1->fcn(); //  虚调用，将在运行时调用Base::fcn()
+bp2->fcn(); //  虚调用，将在运行时调用Base::fcn()
+bp3->fcn(); //  虚调用，将在运行时调用D2::::fcn()，因为类D2对fcn()进行了覆盖
+
+D1 *d1p = &d1obj; D2 *d2p = &d2obj;
+bp2->f2(); // 错误，因为bp2的静态类型为Base，而Base没有 f2()
+d1p->f2(); // 虚调用，将调用 D1::f2()
+d2p->f2(); // 虚调用，将调用 D2::f2()
+
+Base *p1 = &d2obj; D1 *p2 = &d2obj; D2 *p3 = &d2obj;
+p1->fcn(42); // 错误，Base中没有一个接受 int的fcn()函数
+p2->fcn(42); // 静态绑定，因为D1:fcn(int)不是虚函数
+p3->fcn(42); // 静态绑定，因为D2:fcn(int)不是虚函数
+```
+
 
 
 
@@ -1371,8 +1523,127 @@ class D2 : Base { /* ... */ };      // 默认是private继承
 
 &emsp;
 &emsp;
-## 37. 
+## 37. 当发生 派生类->基类 的转换后，转换后的基类能否访问派生类成员？为什么？
+### 37.1 能不能？
+&emsp;&emsp; 不能。
+### 37.2 为什么？
+&emsp;&emsp; 因为名字查找发生在编译时，这意味着 一个对象、引用和指针 的静态类型 决定了该对象的哪些成员是可见的，即使它的静态类型和动态类型可能不一致。
+举个例子，我们给`Disc_quote`类 增加一个`discount_policy()`成员:
+```cpp
+class Disc_quote : public Quote {
+public:
+    std::pair<size_t, double> discount_policy() const { return {quantity, discount}; }
+    // other members as before
+};
 
+Bulk_quote bulk;
+Bulk_quote *bulkP = &bulk;  // bulkP 的 动态类型  = 静态类型
+Quote *itemP = &bulk;       // itemP 的 动态类型 != 静态类型
+bulkP->discount_policy();   // 正确: bulkP 的类型是 Bulk_quote*
+itemP->discount_policy();   // 错误: itemP 的类型是 Quote*
+```
+从上面的代码可以得知，我们只能通过`Disc_quote`及其派生类的对象、引用或指针使用`discount_policy()`，尽管`bulkP`确实包含一个`discount_policy()`，但是该成员对于`bulkP`来说是不可见的，因为`bulkP`的类型是`Quote`，这意味着对`discount_policy()`的查找是从`Quote`类开始的，显然`Quote`类不包含`discount_policy()`，因此我们无法通过`Quote`的对象、引用或指针调用`discount_policy()`。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 38. 当 基类和派生类 中有同名的成员时会发生什么？
+派生类会隐藏同名的基类成员：
+```cpp
+struct Base {
+    Base(): mem(0) { }
+protected:
+    int mem;
+};
+
+struct Derived : Base {
+    Derived(int i): mem(i) { } // 初始化的是 Derived::mem 
+    // Base::mem is default initialized
+    int get_mem() { return mem; } // 返回的是 Derived::mem
+protected:
+    int mem; // 将隐藏 Base::mem 
+};
+
+Derived d(42);
+cout << d.get_mem() << endl; // 输出 42
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 39. 我们知道 派生类会隐藏同名的基类成员，那如何在派生类中使用基类中该同名的成员呢？
+可以使用 作用域运算符 来使用一个被隐藏的基类成员：
+```cpp
+struct Derived : Base {
+    int get_base_mem() { return Base::mem; } // 使用基类中的 mem成员
+    // ...
+};
+```
+**建议：** 除了覆盖继承而来的虚函数外，派生类最好不要重用其它定义在基类中名字，以免发生混淆。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 40. 如果派生类中有一个和基类同名 但参数列表不一样的函数，那基类中的函数在该派生类中是否可见？为什么？
+&emsp;&emsp; 不可见，因为名字查找优于类型检查，因此定义在派生类中函数 不会重载其基类中的成员，和其它作用域一样，如果派生类的成员和基类的某个成员同名，则派生类成员将在其作用域内隐藏该成员函数，即使派生类成员和基类成员的形参列表不一致，基类成员也会被隐藏。
+```cpp
+struct Base {
+    int memfcn();
+};
+
+struct Derived : Base {
+    int memfcn(int); // hides memfcn in the base
+};
+
+Derived d; 
+Base b;
+b.memfcn();         // calls Base::memfcn
+d.memfcn(10);       // calls Derived::memfcn
+d.memfcn();         // error: memfcn with no arguments is hidden
+```
+**如果想访问基类中同名的函数，应该怎么做？**
+&emsp; 可以使用 作用域运算符 来使用一个被隐藏的基类成员：
+```cpp
+d.Base::memfcn();   // ok: calls Base::memfcn
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 41. C++类中的函数调用解析过程是怎样的？
+&emsp;&emsp; 假定我们调用 `p->men()`或`obj.mem()`，则依次执行以下4个步骤：
+① 首先确定`p(或obj)`的静态类型，因为我们调用的是一个成员，所以该类型必定是类类型；
+② 在`p(或obj)`的静态类型对相应的类中查找`mem`，如果找不到，则依次在直接基类中不断查找直至到达继承链的顶端，若找遍了 该类及其所有基类 仍然找不到，则编译器将报错；
+③ 一旦找到了`mem`，就进行常规的类型检查以确认对于当前找到的mem，本次调用是否合法；
+④ 假设调用合法，则编译器将根据调用的是否虚函数而产生不同的代码：
+> &emsp; 若`mem`为虚函数且我们是通过引用或指针进行的调用（将引发动态绑定），则编译器产生的代码将在运行时确定到底运行该函数的哪个版本，依据是对象的动态类型；
+> &emsp; 反之，如果`mem`不是虚函数或我们是通过对象调用，而编译器将产生一个常规函数调用
+> 
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 42. 
 
 
 
