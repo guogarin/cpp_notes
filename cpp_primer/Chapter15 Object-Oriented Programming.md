@@ -117,7 +117,14 @@
   - [39. 我们知道 派生类会隐藏同名的基类成员，那如何在派生类中使用基类中该同名的成员呢？](#39-我们知道-派生类会隐藏同名的基类成员那如何在派生类中使用基类中该同名的成员呢)
   - [40. 如果派生类中有一个和基类同名 但参数列表不一样的函数，那基类中的函数在该派生类中是否可见？为什么？](#40-如果派生类中有一个和基类同名-但参数列表不一样的函数那基类中的函数在该派生类中是否可见为什么)
   - [41. C++类中的函数调用解析过程是怎样的？](#41-c类中的函数调用解析过程是怎样的)
-  - [42.](#42)
+  - [42. 虚析构函数（Virtual Destructors）](#42-虚析构函数virtual-destructors)
+    - [42.1 为什么要定义虚析构函数？](#421-为什么要定义虚析构函数)
+    - [42.2 如何定义 虚析构函数？](#422-如何定义-虚析构函数)
+    - [42.3 如果`Quote`没有定义虚析构函数，下面的代码将发生什么？ `Quote *itemP = new Bulk_quote;  delete itemP; `](#423-如果quote没有定义虚析构函数下面的代码将发生什么-quote-itemp--new-bulk_quote--delete-itemp-)
+    - [42.4 虚析构函数会对基类和派生类的定义产生什么影响？](#424-虚析构函数会对基类和派生类的定义产生什么影响)
+  - [43. 合成拷贝控制和继承](#43-合成拷贝控制和继承)
+    - [43.1 派生类的 合成控制成员的运行规则是怎样的？](#431-派生类的-合成控制成员的运行规则是怎样的)
+  - [44. 如果基类的拷贝控制成员是删除的，派生类的对应成员 会是什么状态？ 为什么？](#44-如果基类的拷贝控制成员是删除的派生类的对应成员-会是什么状态-为什么)
     - [基类如何强制派生类一定要覆盖某个函数？](#基类如何强制派生类一定要覆盖某个函数)
   - [覆盖(override)](#覆盖override)
   - [类派生列表中的 访问说明符 的作用是？](#类派生列表中的-访问说明符-的作用是)
@@ -1643,7 +1650,84 @@ d.Base::memfcn();   // ok: calls Base::memfcn
 
 &emsp;
 &emsp;
-## 42. 
+## 42. 虚析构函数（Virtual Destructors）
+### 42.1 为什么要定义虚析构函数？
+&emsp;&emsp; 我们知道在析构一个动态分配的对象的指针时将执行析构函数，如果该指针指向继承体系中某个类时，则有可能出现 该指针的静态类型 和 被删除对象的动态类型(即该指针指向的对象) 不同 的情况。例如我们`delete`一个`Quote*`类型的指针时，这个指针有可能指向的是一个`Bulk_quote`对象，那在这种情况下，编译器必须知道他应该执行的是`Bulk_quote`的析构函数。
+&emsp;&emsp; 综上所述，虚析构函数 是为了让编译器在发生动态绑定时执行正确的析构函数。
+
+### 42.2 如何定义 虚析构函数？
+```cpp
+class Quote {
+public:
+    // virtual destructor needed if a base pointer pointing to a derived object is deleted
+    virtual ~Quote() = default; // dynamic binding for the destructor
+};
+
+Quote *itemP = new Quote;   // 动态类型和静态类型一致
+delete itemP;               // 调用 Quote::~Quote()
+
+itemP = new Bulk_quote;     // 动态类型变为了 Bulk_quote
+delete itemP;               // 调用Bulk_quote的析构函数
+```
+
+### 42.3 如果`Quote`没有定义虚析构函数，下面的代码将发生什么？ `Quote *itemP = new Bulk_quote;  delete itemP; ` 
+&emsp;&emsp; 我们可以知道 指针`itemP` 的动态类型和静态类型不相同，因此`delete itemP`时，编译器无法调用 派生类`Bulk_quote`的析构函数来对 类型为`Bulk_quote`的动态内存进行析构，这将产生未定义的行为。
+
+### 42.4 虚析构函数会对基类和派生类的定义产生什么影响？
+&emsp;&emsp; 如果一个类定义了析构函数，即使他通过`=default`的形式使用了合成的版本，编译器也不会为这个类合成移动操作。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 43. 合成拷贝控制和继承
+### 43.1 派生类的 合成控制成员的运行规则是怎样的？
+&emsp;&emsp; 在调用一个类的合成构造函数时，会在类的继承体系中一直向上找，一直找到最顶端的那个基类，然后从该基类开始，依次执行这些类的默认构造函数。其它的合成赋值运算符、合成析构函数也类似。**合成析构函数则顺序相反。**
+下面是一个例子：
+```cpp
+class Quote {
+public:
+    virtual ~Quote() = default; 
+    // ...其它成员
+private:
+    std::string bookNo; // ISBN number of this item
+protected:
+    double price = 0.0; // normal, undiscounted price
+};
+
+class Disc_quote : public Quote {
+public:
+    // ...其它成员
+protected:
+    std::size_t quantity = 0; // purchase size for the discount to apply
+    double discount = 0.0;      // fractional discount to apply
+};
+
+class Bulk_quote : public Disc_quote {
+public:
+    Bulk_quote() = default;
+    // ...其它成员
+};
+```
+对于上面的继承体系，`Bulk_quote bq;`将依据如下的规则进行默认初始化：
+> 合成的`Bulk_quote`默认构造函数 运行它的直接基类`Disc_quote`的默认构造函数，而后者又运行`Quote`的默认构造函数；
+> `Quote`的默认构造函数将 `bookNo`成员 默认初始化为空`string`，同时用类内初始值将`price`成员初始化为0；
+> `Quote`的默认构造函数运行完毕后，继续执行 `Disc_quote`的默认构造函数，它将使用类内初始值初始化`quantity`和`discount`；
+> 最后运行的是 `Bulk_quote`的合成默认构造函数，但它什么也不做。
+> 
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 44. 如果基类的拷贝控制成员是删除的，派生类的对应成员 会是什么状态？ 为什么？
+&emsp;&emsp; 如果基类中的 默认构造函数、拷贝构造函数、拷贝赋值运算符、析构函数 是被删除的或不可访问，则派生类中对应的成员也将是被删除的，**因为** 编译器不能使用 基类的对应成员来执行 派生类中的基类部分 的构造、固执或销毁操作。
 
 
 
