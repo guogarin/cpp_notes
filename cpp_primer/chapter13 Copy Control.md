@@ -120,6 +120,32 @@ f(vector<int>(10));     // ok: directly construct a temporary vector from an int
 ### 2.15 编译器可以绕过拷贝构造函数
 .TODO: 不是很明白书上想表达的意思，后面回来再看。
 
+### 2.16 为下面的类提供 一个 拷贝构造函数
+```cpp
+class HasPtr {
+public:
+    // 所有参数都有默认值，因此是个默认构造函数
+    HasPtr(const std::string &s=std::string()): i(0), ps(new std::string(s)) { }
+
+    HasPtr(const HasPtr&p): i(p.i), ps(new std::string(p.ps)) { }
+    HasPtr& operator=(const HasPtr&);
+    ~HasPtr(){delete ps; }
+private:
+    int i;
+    std::string * ps;
+};
+```
+**解答：**
+&emsp;&emsp; 值得注意的是 拷贝构造函数也是构造函数，因此需要在构造函数初始值列表中对类的成员进行初始化，如果在花括号`{}`中定义的话就是赋值了，而不是初始化：
+```cpp
+class HasPtr {
+public:
+    // 其它成员略...
+    HasPtr(const HasPtr& p): i(p.i), ps(new std::string(p.ps)) { }
+private:
+    // 私有成员，同略...
+};
+```
 
 
 
@@ -582,9 +608,9 @@ public:
 class HasPtr {
 public:
     // 所有参数都有默认值，因此是个默认构造函数
-    HasPtr(const std::string &s=std::string()): i(0), ps(new std::string(s)), { }
+    HasPtr(const std::string &s=std::string()): i(0), ps(new std::string(s)) { }
 
-    HasPtr(const HasPtr&p): i(p.i), ps(new std::string(p.ps)), { }
+    HasPtr(const HasPtr&p): i(p.i), ps(new std::string(p.ps)) { }
     HasPtr& operator=(const HasPtr&);
     ~HasPtr(){delete ps; }
 private:
