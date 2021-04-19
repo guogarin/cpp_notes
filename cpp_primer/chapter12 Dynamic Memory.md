@@ -86,6 +86,7 @@
     - [7.4 allocator类 支持哪些操作？](#74-allocator类-支持哪些操作)
       - [7.5 如何使用 allocator类？](#75-如何使用-allocator类)
       - [7.6 allocator类中 拷贝和填充 未初始化内存的算法](#76-allocator类中-拷贝和填充-未初始化内存的算法)
+  - [8. `shared_ptr`、`unique_ptr`分别在哪个头文件？](#8-shared_ptrunique_ptr分别在哪个头文件)
   - [RAII](#raii)
   - [文本查询程序](#文本查询程序)
 # 第十二章 动态内存
@@ -832,6 +833,13 @@ uninitialized_fill_n(q, vi.size(), 42);
 **需要注意啊的是：**
 &emsp;&emsp; 使用这些算法时，一定要保证空间够用！
 
+
+
+
+
+
+## 8. `shared_ptr`、`unique_ptr`分别在哪个头文件？
+&emsp;&emsp; 都在 `memory`头文件中。
 
 
 &emsp;

@@ -144,8 +144,8 @@
     - [50.1 下面的代码将发生什么？如何修改？](#501-下面的代码将发生什么如何修改)
     - [50.2 使用容器来存放继承体系中的对象时，需要注意什么？为什么？](#502-使用容器来存放继承体系中的对象时需要注意什么为什么)
     - [50.3 我们应该怎么在容器中存放 继承体系中的对象？](#503-我们应该怎么在容器中存放-继承体系中的对象)
-    - [50.4](#504)
-    - [50.5](#505)
+    - [50.4 下面的代码的输出是什么？为什么？](#504-下面的代码的输出是什么为什么)
+    - [50.5 编写BASKET类](#505-编写basket类)
     - [50.6](#506)
     - [50.7](#507)
     - [50.8](#508)
@@ -1943,13 +1943,53 @@ cout << basket.back().net_price(15) << endl;
 ```cpp
 vector<shared_ptr<Quote>> basket;
 basket.push_back(make_shared<Quote>("0-201-82470-1", 50));
-basket.push_back(make_shared<Quote>Bulk_quote("0-201-54848-8", 50, 10, .25));
-cout << basket.back() -> net_price(15) << endl;
+basket.push_back(make_shared<Bulk_quote>("0-201-54848-8", 50, 10, .25));
+// 调用的是 Bulk_quote::net_price()，因为 basket.back()返回的是 一个动态类型为 Bulk_quote的对象
+cout << basket.back()->net_price(15) << endl;
 ```
 
-### 50.4
+### 50.4 下面的代码的输出是什么？为什么？
+```cpp
+#include<iostream>
+#include<memory> // shared_ptr
+#include<vector>
 
-### 50.5
+using namespace std;
+
+class Base{
+public:
+    virtual void func() { cout << "I am in base." << endl;}
+};
+
+class Derived : public Base{
+public:
+    virtual void func() { cout << "I am in Derived." << endl;}
+};
+
+
+int main()
+{
+    vector<shared_ptr<Base>> vec;
+    vec.push_back(make_shared<Base>());
+    vec.push_back(make_shared<Derived>());
+
+    for(auto itr = vec.begin(); itr != vec.end(); ++itr)
+        (*itr)->func();
+
+    return 0;
+}
+```
+**结果为：**
+```
+I am in base.
+I am in Derived.
+```
+**结果分析：**
+&emsp;&emsp; 第一个调用的是 基类版本 的`func()`，因为`vec[0]`的动态类型=静态类型=`Base`；
+&emsp;&emsp; 第二个调用的是 派生类版本的`func()`，因为`vec[0]`的动态类型=`Derived`，静态类型=`Base`，而我们知道在虚函数的调用中，依赖的是指针所指向对象的动态类型。
+
+### 50.5 编写BASKET类
+。TODO:
 
 ### 50.6
 
