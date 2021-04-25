@@ -125,6 +125,44 @@ int compare(const vector<int> &v1, const vector<int> &v2)
 ```
 上述这些编译器生成的版本通常被称为 模板的实例(instantiation)
 
+### 6.6 模板的 类型参数(type parameter)
+#### 6.6.1 什么是模板的 类型参数？
+```cpp
+template<typename T>
+int compare(const T &v1, const T &v2)
+{
+    // 略...
+}
+```
+在上面的代码中，`T`就是 类型参数
+#### 6.6.2 使用类型参数时需要注意什么？
+类型实参前必须使用关键字`typename`或`class`
+```cpp
+// 错误，U前面没有关键字typename或class
+template <typename T, U> calc(const T&, const U&);
+```
+#### 6.6.2 在模板参数列表中，`typename`或`class`有何区别？
+&emsp;&emsp; 没有区别。可以互换使用，一个模板参数列表中可以同时使用这两个关键字。
+&emsp;&emsp; 看起来`typename`要比`class`直观许多，毕竟我们可以使用内置(非类类型)来作为模板类型实参，而且`typename`更清楚的指出随后的名字是一个类型名。可以在模板参数列表中使用`class`关键字 是为了兼容以前的C++版本，因为`typename`是在模板已经广泛使用之后才引入C++的，以前都是使用`class`关键字的。
+#### 6.6.3 在模板参数列表中，只能使用`typename`或`class`吗？
+&emsp;&emsp; 不是，还能使用 非类型模板参数(nontype parameter)，但是要注意的是，一个 非类型参数 表示一个值 而不是表示一个类型！
+#### 6.6.4 如何理解下面的代码？
+```cpp
+template<unsigned N, unsigned M>
+int compare(const char (&p1)[N], const char (&p2)[M])
+{
+    return strcmp(p1, p2);
+}
+
+int result = compare("hi", "mom");
+```
+这是一个函数模板，`compare`的两个形参都是数组的引用(详见《C++ primer》6.2.4节)，其中`N`和`M`都是非类型参数，分别表示数组`p1`和`p2`的长度，这是编译器根据传入的实参推断得到的。其中`int result = compare("hi", "mom");`将会被实例化出如下版本：
+```cpp
+int compare(const char (&p1)[3], const char (&p2)[4])
+{
+    return strcmp(p1, p2);
+}
+```
 
 
 ```cpp
