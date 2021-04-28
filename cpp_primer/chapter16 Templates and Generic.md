@@ -203,6 +203,7 @@ int compare(const char (&p1)[3], const char (&p2)[4])
 &emsp;
 &emsp;
 ## 8 类模板(class template)
+&emsp;&emsp; 人们需要编写多个形式和功能都相似的函数，因此有了函数模板来减少重复劳动；人们也需要编写多个形式和功能都相似的类，于是 C++ 引人了类模板的概念，编译器从类模板可以自动生成多个类，避免了程序员的重复劳动。
 ### 8.1 类模板 和 函数模板 在使用上有何不一样？
 &emsp;&emsp; 和函数模板不一样的是，**编译器 不能为类模板 推断模板参数类型**。因此在使用类模板时，我们必须在模板名后面提供额外信息：
 ```cpp
@@ -210,10 +211,36 @@ vector<int> vec{2, 3}; // vector是类模板，我们需要提供参数的类型
 compare(2, 3);
 ```
 
+### 8.2 语法规则
+```cpp
+template <typename T> class Blob {
+public:
+    typedef T value_type;
+    typedef typename std::vector<T>::size_type size_type;
+    // constructors
+    Blob();
+    Blob(std::initializer_list<T> il);
+    // number of elements in the Blob
+    size_type size() const { return data->size(); }
+    bool empty() const { return data->empty(); }
+    // add and remove elements
+    void push_back(const T &t) {data->push_back(t);}
+    // move version; see § 13.6.3 (p. 548)
+    void push_back(T &&t) { data->push_back(std::move(t)); }
+    void pop_back();
+    // element access
+    T& back();
+    T& operator[](size_type i); // defined in § 14.5 (p. 566)
+private:
+    std::shared_ptr<std::vector<T>> data;
+    // throws msg if data[i] isn't valid
+    void check(size_type i, const std::string &msg) const;
+};
+```
+### 如何理解 `typedef T value_type;` ?
+https://blog.csdn.net/LG1259156776/article/details/77992822?utm_source=blogxgwz13
 
-
-
-
+### 如何理解 `typedef typename std::vector<T>::size_type size_type;` ？
 
 
 
