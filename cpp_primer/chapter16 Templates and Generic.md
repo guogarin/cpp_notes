@@ -297,6 +297,121 @@ BlobPtr<T>/*① 在此之前，都不在类作用域内*/ BlobPtr<T>::operator++
 }
 ```
 
+### 8.6 类模板 和 友元
+&emsp;若一个类模板包含一个友元时：
+&emsp;&emsp; 若该友元**不是**模板，则友元是该类模板所有实例的友元
+&emsp;&emsp; 若该友元**是**模板，则该类模板可以授权给所有友元模板实例，也可只授权给特定实例。
+#### 8.6.1 一对一 的友元关系
+&emsp;&emsp; 类模板与另一个模板间友好关系的最常见形式是：只授权给模板实参相同的友元模板：
+```cpp
+// 前向声明
+template <typename> class BlobPtr; 
+template <typename> class Blob;     // 下面的 operator== 要用到 Blob，因此需要前向声明
+
+template <typename T>
+    bool operator==(const Blob<T>&, const Blob<T>&);
+
+template <typename T> class Blob {
+    // 每个Blob将访问权限授予 用相同类型实例化的 BlobPtr 和 ==运算符
+    friend class BlobPtr<T>;
+    friend bool operator==<T>
+        (const Blob<T>&, const Blob<T>&);
+    // other members as in § 12.1.1 (p. 456)
+};
+```
+在上述代码中，友元的声明用`Blob`的模板形参作为它们自己的模板实参。因此，友好关系被限定在用相同类型实例化的`Blob`、`BlobPtr`、相等运算符之间：
+```cpp
+Blob<char> ca; // BlobPtr<char> 和 operator==<char> 都是本对象的友元
+Blob<int> ia; // BlobPtr<int> 和 operator==<int> 都是本对象的友元
+```
+#### 8.6.2 如何将 另一个模板的所有实例都声明为自己的友元？ 如何限定特定实例为自己的友元？
+##### (1) 将一个模板类的所有实例 声明为 另一个类模板的所有实例的友元：
+```cpp
+template <typename T> class C2 { 
+    template <typename X> friend class Pal2;
+};
+```
+我们可以看到 `类模板C2`用的模板参数是`T`，而`类模板Pal2`用的模板参数是`X`
+##### (2) 将一个模板类的 特定实例 声明为 另一个类模板的所有实例的友元：
+```cpp
+template <typename T> class Pal; // 前向声明，在将模板的一个特定实例声明为友元时要用到
+
+class C { // C 是一个普通的非模板类
+    friend class Pal<C>; // 用 类C 实例化的Pal 是C的一个友元
+};
+```
+我们可以看到，只需给 `类模板Pal`提供 参数类型(如上文中的`类类型C`)，就能做到。
+##### (3) 总结
+```cpp
+template <typename T> class Pal;// 前向声明，在将模板的一个特定实例声明为友元时要用到
+
+class C { // C 是一个普通的非模板类
+    friend class Pal<C>; // 用 类C 实例化的Pal 是C的一个友元
+    
+    template <typename T> friend class Pal2;// Pal2 的所有实例都是C的友元，这种情况无序前置声明！
+};
+
+template <typename T> class C2 { // C2 是一个 类模板
+    // C2 的每个实例将相同实例化的Pal声明为友元
+    friend class Pal<T>; // Pal 的模板声明必须在作用域之内
+    
+    template <typename X> friend class Pal2;// Pal2 的所有实例都是C2的每个实例的友元
+    
+    friend class Pal3; // Pal3 是一个非模板类，它是C2所有实例的友元。Pal3 无需前置声明
+};
+```
+#### 8.6.3 如何将 模板自己的类型参数 成员友元？这有啥用？
+在C++11中，我们可以将模板参数类型声明为友元：
+```cpp
+template <typename Type> class Bar {
+    friend Type; // grants access to the type used to instantiate Bar
+    // ...
+};
+```
+在上面的代码中，我们将用来实例化`类模板Bar`的 类型`Type` 声明为其友元。举个例子：
+> 对于`Bar<Sales_data>`，`Sales_data类`将成为 实例`Bar<Sales_data>` 的友元
+> 
+值得注意的是，通常来说友元应该是一个 函数 或 类，但我们完全可以用一个 内置类型来实例化`Bar`，而且这种与内置类型为友元的情况是被允许的。
+
+### 8.7 类模板的 类型别名
+#### 8.7.1 `typedef pair<T, T> twin` 对吗？ 为什么？ 如果错了，应该怎么修改？
+**对不对？ 为什么**
+&emsp;&emsp; 不对，因为模板不是类型，故不可定义typedef来引用模板。
+**怎么改？**
+&emsp;&emsp; 
+```cpp
+template<typename T> using twin = pair<T, T>;
+```
+#### 8.7.2 为类模板 定义 类型别名 有何用处？
+**(1) 方便**
+```cpp
+template<typename T> using twin = pair<T, T>;
+twin<string> authors;   // authors 是一个 pair<string, string>
+twin<int> win_loss;     // win_loss 是一个 pair<int, int>
+twin<double> area;      // area 是一个 pair<double, double>
+```
+**(2) 就单纯的取个别名**
+#### 8.7.3 为一个 类模板取别名时，可以固定一个或多个模板参数吗？
+可以
+```cpp
+template <typename T> using partNo = pair<T, unsigned>;
+partNo<string> books; // books is a pair<string, unsigned>
+partNo<Vehicle> cars; // cars is a pair<Vehicle, unsigned>
+partNo<Student> kids; // kids is a pair<Student, unsigned>
+```
+#### 8.7.4 总结
+&emsp;&emsp; 因为 类模板 的类型不确定，因此我们不能用`typedef`来为其取别名，而是要通过`using声明`来为其取别名。
+
+### 8.8 类模板的 `static成员`
+#### 8.8.1 
+
+
+
+
+
+
+
+
 ## 重写`strBlob`类
 ```cpp
 template <typename T> class Blob {
