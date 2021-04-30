@@ -597,7 +597,7 @@ void f(destination &d /*其它参数*/)
 ### 5.4 如何通过 weak_ptr 访问对象？
 &emsp;&emsp; 由于对象可能不存在，因此我们不能使用`weak_ptr`直接访问对象，而必须使用`lock()`，此函数检查`weak_ptr`指向的对象是否存在，如果存在则返回返回一个指向w的对象的`shared_ptr`，否则返回一个空指针：
 ```cpp
-if(shared<int> np = wp.lock()){ // 若 np不为空则条件成立
+if(shared<int> np == wp.lock()){ // 若 np不为空则条件成立
     // do something here.
 }
 ```

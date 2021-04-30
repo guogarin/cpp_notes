@@ -236,7 +236,7 @@ ret-type/*返回类型*/ T_Name<T>::member-name/*成员函数名*/(parm-list/*�
 &emsp;&emsp; 没有，因为类模板的每个实例都是独立的类。使用不同模板实参实例化出的类之间没有关联，也没有特殊的访问权限。
 
 ### 8.4 实例化一个类模板后，该类模板的 所有成员函数 都会立马进行实例化吗？
-&emsp;&emsp; 不是的，默认情况下，对于一个实例化了的类模板，其成员只有在使用时才会被实例化。
+&emsp;&emsp; 不是的，默认情况下，对于一个实例化了的类模板，其成员函数只有在使用时才会被实例化，那些没有使用到的成员函数不会被初始化。换句话说，假设一个模板类有10个成员函数，但是实例化后只用到了3个，那只有使用到的这三个会被实例化，剩下的6个不会被实例化。
 ```cpp
 Blob<int> squares = {0,1,2,3,4,5,6,7,8,9};
 // instantiates Blob<int>::size() const
@@ -245,9 +245,57 @@ squares[i] = i*i; // instantiates Blob<int>::operator[](size_t)
 ```
 对于上面的代码，只有`operator[]`、`size()`和 `接受initializer_list<int>的构造函数`会被实例化，`Blob<int>`的其它成员函数不会被实例化。
 
-
-
-
+### 8.5 在使用类模板时，什么时候可以省略模板参数？
+### 8.5.1 何时可以省略？
+&emsp;&emsp; **使用一个类模板时必须提供模板实参，有一个例外**：在类模板自己的作用域中，可直接使用模板名而不提供实参。
+```cpp
+// BlobPtr throws an exception on attempts to access a nonexistent element
+template <typename T> class BlobPtr{
+public:
+    // 其它公有成员，略...
+    // 注意，这里的 ++ 和 -- 运算符 的返回值 都没有加 类型T
+    BlobPtr& operator++(); 
+    BlobPtr& operator--();
+private:
+    // 私有成员，略...
+};
+```
+&emsp;&emsp; 处于类模板的作用域中时，编译器处理模板自身引用时，就像已经提供了与模板参数相同的实参一样。
+对于`BlobPtr<T>::operator++`和`BlobPtr<T>::operator--`，其类似于下面的代码：
+```cpp
+BlobPtr<T>& operator++(); // 提供了类型T
+BlobPtr<T>& operator--();
+```
+### 8.5.2 在类外定义的时候也可以省略模板参数吗？
+&emsp;&emsp; 不可以。因为在类模板外定义成员时，**直到遇到类名才进入类作用域**。即，返回类型中出现模板自身时需要提供模板实参。若不提供模板实参，则编译器假定使用的实参与成员实例化所用的实参一致
+```cpp
+template <typename T>
+BlobPtr<T>/*① 注意，类外定义成员函数时，不能省略模板参数！*/ BlobPtr<T>::operator++(int)
+{
+    BlobPtr ret = *this; // ② 此时已经在类的作用域内了，可以省略 参数类型T
+    ++*this; 
+    return ret; 
+}
+```
+对于 类外定义的`BlobPtr<T>::operator++`，因为返回类型已经在类的作用域之外了，因此我们必须指出返回类型是一个实例化的`BlobPtr`，而在函数体类，我们已经进入类的作用域，因此`BlobPtr ret = *this;`无需写成`BlobPtr<T> ret = *this;`。
+### 8.5.3 总结
+&emsp;&emsp; 能不能省略模板参数，**关键是看 是否在类作用域内**。在类作用域内可以省略模板参数，在类作用域外不能省略。那问题来了，怎么确定是否在类作用域内呢？
+① 在类的定义的花括号体内时，我们处于类的作用域内；
+```cpp
+template <typename T>
+class T_Class{
+    // 作用域内
+}
+```
+② 在类外定义成员函数时，类名 到 函数体结束这段区间内，我们处于类作用域内
+```cpp
+template <typename T>
+BlobPtr<T>/*① 在此之前，都不在类作用域内*/ BlobPtr<T>::operator++(int)
+{
+    // ② 此时已经在类的作用域内了，可以省略 参数类型T
+    // 函数体，略...
+}
+```
 
 ## 重写`strBlob`类
 ```cpp
