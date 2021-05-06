@@ -403,13 +403,27 @@ partNo<Student> kids; // kids is a pair<Student, unsigned>
 &emsp;&emsp; 因为 类模板 的类型不确定，因此我们不能用`typedef`来为其取别名，而是要通过`using声明`来为其取别名。
 
 ### 8.8 类模板的 `static成员`
-#### 8.8.1 
-
-
-
-
-
-
+#### 8.8.1 类模板的 `static成员` 和普通类的`static成员`有何不一样？
+&emsp;&emsp; 在下面这段代码中，`Foo`是一个模板类，它有一个名为 `count` 的 public static 成员函数 和一个名为 `ctr` 的 private static 数据成员:
+```cpp
+template <typename T> class Foo {
+public:
+    static std::size_t count() { return ctr; }
+    // other interface members
+private:
+    static std::size_t ctr;
+    // other implementation members
+};
+```
+每个 `Foo` 的实例都有自己的 static成员实例。即，对任意给定类型`X`，都有一个`Foo<X>::ctr` 和一个 `Foo<X>::count()成员函数`。所有 `Foo<X>`类型的对象共享相同的 `ctr对象`和 `count函数`。例如：
+```cpp
+// 实例化 static 成员 Foo<string>::ctr 和 Foo<string>::count
+Foo<string> fs;
+// /所有三个对象共享相同的静态成员，即 Foo<int>::ctr 和 Foo<int>::count 成员
+Foo<int> fi, fi2, fi3;
+```
+**总结：**
+&emsp;&emsp; 在 普通的类 和 类模板 中，静态成员其实有着一样的特性：无论新建多少个对象，同一个静态成员都只有一个。对于类模板（就拿类模板`Foo`来举例），我们其实可以将 `Foo<string>` 和 `Foo<int>` 看成是两个不同的类，对于`Foo<string>`，无论你用它新建多少个对象，都只存在 一个`Foo<string>::ctr` 和 一个`Foo<int>::count`。
 
 
 ## 重写`strBlob`类
