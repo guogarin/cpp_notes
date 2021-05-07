@@ -423,8 +423,58 @@ Foo<string> fs;
 Foo<int> fi, fi2, fi3;
 ```
 **总结：**
-&emsp;&emsp; 在 普通的类 和 类模板 中，静态成员其实有着一样的特性：无论新建多少个对象，同一个静态成员都只有一个。对于类模板（就拿类模板`Foo`来举例），我们其实可以将 `Foo<string>` 和 `Foo<int>` 看成是两个不同的类，对于`Foo<string>`，无论你用它新建多少个对象，都只存在 一个`Foo<string>::ctr` 和 一个`Foo<int>::count`。
+&emsp;&emsp; 在 普通的类 和 类模板 中，静态成员其实有着一样的特性：无论新建多少个对象，同一个静态成员都只有一个。
+&emsp;&emsp; 对于类模板（就拿类模板`Foo`来举例），编译器会将 `Foo<string>` 和 `Foo<int>` 实例化成两个不同的类，这些被实例化的类 其实和 普通的类 是一样的，可以用来构建类对象。对于`Foo<string>`，无论你用它新建多少个对象，都只存在 一个`Foo<string>::ctr` 和 一个`Foo<int>::count`，因为它俩都是静态成员。
 
+### 8.9 模板参数 的作用域
+&emsp;&emsp; 模板参数遵循普通的作用域规则，**一个模板参数名的可用范围** 是在其声明之后 至 模板声明或定义结束之前：
+```cpp
+typedef double A;
+
+template <typename A, typename B> void f(A a, B b)
+{
+    // 外部的 A 被隐藏了
+
+    A tmp = a; // tmp的类型 为 模板参数A，而不是 double
+    double B;  // 错误: 重复声明 模板参数B
+}
+```
+
+### 8.10 模板声明
+&emsp;&emsp; 
+(1) 模板声明中 **必须包含 模板参数**
+(2) 和函数参数一样，声明中的 模板参数的名字 不必和定义中相同
+```cpp
+// 声明 但不定义 compare 和 Blob
+template <typename T> int compare(const T&, const T&);
+template <typename T> class Blob;
+
+// 注意！下面 3个calc 都指向 相同的 函数模板
+template <typename T> T calc(const T&, const T&); // declaration
+template <typename U> U calc(const U&, const U&); // declaration
+// 定义
+template <typename Type>
+Type calc(const Type& a, const Type& b) 
+{
+    /* 略 */ 
+}
+```
+### 8.11 使用类的类型成员
+
+
+
+
+
+
+
+
+
+
+
+
+```cpp
+
+```
 
 ## 重写`strBlob`类
 ```cpp
