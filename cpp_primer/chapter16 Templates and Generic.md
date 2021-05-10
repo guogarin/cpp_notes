@@ -170,6 +170,15 @@ int compare(const char (&p1)[3], const char (&p2)[4])
 应该尽量减少对实参类型的要求，比如：
 (1) 形参应该为 引用，这样就能确保函数可以用于 不可靠拷贝的类型；
 (2) 用`less`来替代`<`进行比较操作；
+```cpp
+// version of compare that will be correct even if used on pointers; see § 14.8.2 (p.575)
+template <typename T> int compare(const T &v1, const T &v2)
+{
+    if (less<T>()(v1, v2)) return -1;
+    if (less<T>()(v2, v1)) return 1;
+    return 0;
+}
+```
 
 
 
@@ -441,7 +450,6 @@ template <typename A, typename B> void f(A a, B b)
 ```
 
 ### 8.10 模板声明
-&emsp;&emsp; 
 (1) 模板声明中 **必须包含 模板参数**
 (2) 和函数参数一样，声明中的 模板参数的名字 不必和定义中相同
 ```cpp
@@ -459,13 +467,75 @@ Type calc(const Type& a, const Type& b)
     /* 略 */ 
 }
 ```
-### 8.11 使用类的类型成员
 
+### 8.11 在类模板中 使用 类的类型成员
+#### 8.11.1 在类模板中使用类的类型成员 和 在非模板的类使用有何区别？
+&emsp;&emsp; 回忆一下，我们用作用域运算符(::)来访问 `static成员` 和 类型成员。在普通（非模板）代码中，编译器掌握类的定义，因此它知道通过作用域运算符访问的名字是类型还是`static成员`。例如，如果我们写下`string::size_type;`编译器有`string`的定义，从而知道`size_type`是一个类型。
+&emsp;&emsp; 但对于模版代码就存在困难。例如，假定T是一个模板参数，当编译器遇到类似`T::mem`这样的代码时，它不会知道mem是一个类型成员还是一个`static成员`，直到实例化时才知道。但是为了处理模板，编译器必须知道名字是否表示一个类型。例如，假定T是一个类型参数的名字，当编译器遇到如下形式的语句时：
+```cpp
+T::size_type * p;// 这是在 定义一个指针 还是在 一个乘法运算 呢？
+```
+它需要知道我们是正在定义一个名为p的变量还是将一个名为`size_type`的`static数据成员`与名为`p`的变量相乘。
+#### 8.11.2 如何 在类模板中 使用 类的类型成员？
+&emsp;&emsp; 默认情况下，C++语言假定通过作用域运算符访问的名字不是类型。因此，如果我们希望使用一个模板类型参数的类型成员，就必须显示告诉编译器该名字是一个类型。我们通过使用关键字`typename`来实现这一点：
+```cpp
+template <typename T>
+typename T::value_type top(const T& c)
+{
+    if(!c.empty())
+        return c.back();
+    else
+        return typename T::value_type();
+}
+```
+#### 8.11.3 有没有什么简便(偷懒)的方法 可以在类模板中 使用 类的类型成员？
+使用`typedef`：
+```cpp
+template <typename T> class Blob {
+public:
+    typedef T value_type;
+    typedef typename std::vector<T>::size_type size_type;
+    // 略...
+private:
+    // 略...
+};
+```
+**详解：**
+① `typedef typename std::vector<T>::size_type size_type;`
+&emsp;&emsp; `size_type` 会是 `typename std::vector<T>::size_type` 的别名
+② ``typename std::vector<T>::size_type``
+&emsp;&emsp; 这告诉编译器 `std::vector<T>::size_type`是一个类型，因为在默认情况下，C++语言假定通过作用域运算符访问的名字不是类型。
+③ 总结
+&emsp;&emsp; `typedef`创建了存在类型的别名，而`typename`告诉编译器`std::vector<T>::size_type`是一个类型而不是一个成员。
 
+### 8.12 默认模板实参（default template argument）
+#### 8.12.1 如何使用 模板实参？
+&emsp;&emsp; 在新标准中，我们可以为 模板函数、类模板提供实参。
+```cpp
+// compare has a default template argument, less<T>
+// and a default function argument, F()
+template <typename T, typename F = less<T>> // F的默认实参是 less<T>
+int compare(const T &v1, const T &v2, F f = F())
+{
+    if (f(v1, v2)) return -1;
+    if (f(v2, v1)) return 1;
+    return 0;
+}
+```
+**语法解释：**
+(1) `typename F = less<T>`
+&emsp;&emsp; 定义了一个模板参数`F`，它表示可调用对象(详见第14章的笔记)
+(2) `F f = F()`
+&emsp;&emsp; 定义了一个新的函数参数`f`，它绑定到一个可调用对象上
 
-
-
-
+#### 8.12.2 使用默认模板实参时需要注意什么？
+&emsp;&emsp; 和函数默认实参一样，对于一个模板参数，只有当它右侧的所有参数都有默认实参时，它才可以有默认实参。
+```cpp
+template <typename T1=int, typename T2 > // 错误，T2没有默认实参
+int func(const T1 &v1, const T2 &v2)
+{
+    // 略...
+```
 
 
 
@@ -506,6 +576,7 @@ private:
 https://blog.csdn.net/LG1259156776/article/details/77992822?utm_source=blogxgwz13
 
 ### 如何理解 `typedef typename std::vector<T>::size_type size_type;` ？
+在本文中的 _在类模板中 使用 类的类型成员_ 小结中有讲述。
 ```cpp
 
 ```
