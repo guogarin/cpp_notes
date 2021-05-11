@@ -536,6 +536,193 @@ int func(const T1 &v1, const T2 &v2)
 {
     // 略...
 ```
+#### 8.12.3 如何在类模板中使用默认实参？
+&emsp;&emsp; 
+```cpp
+template <class T = int> class Numbers { // by default T is int
+public:
+    Numbers(T v = 0): val(v) { }
+    // various operations on numbers
+private:
+    T val;
+};
+```
+值得注意的是，**即使使类模板有默认参数，在使用时你也要带上尖括号：**
+```cpp
+Numbers<long double> lots_of_precision;
+Numbers<> average_precision; // empty <> says we want the default type
+```
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 9 成员模板（member template）
+### 9.1 什么是成员模板？
+&emsp;&emsp; 一个类（无论是 普通类 还是 类模板）可以包含本身时模板的成员函数，这种成员被称为**成员模板**
+
+### 9.2 编写 成员模板 时需要注意什么？为什么？
+成员模板函数不能为虚函数，同时也不能有默认参数。
+**(1) 为什么不能是虚函数？**
+&emsp;&emsp; 编译器在编译一个类的时候，需要确定这个类的虚函数表的大小。一般来说，如果一个类有`N`个虚函数，它的虚函数表的大小就是`N`，如果按字节算的话那么就是`8*N`(因为64bit的机器上，指针未8字节)。 
+&emsp;&emsp; 如果允许一个成员模板函数为虚函数的话，因为我们可以为该成员模板函数实例化出很多不同的版本，也就是可以实例化出很多不同版本的虚函数，那么编译器为了确定类的虚函数表的大小，就必须要知道我们一共为该成员模板函数实例化了多少个不同版本的虚函数。显然编译器需要查找所有的代码文件，才能够知道到底有几个虚函数，这对于多文件的项目来说，代价是非常高的，所以才规定成员模板函数不能够为虚函数。 
+我们来看下面的例子（下面的代码是错误的，只是为了说明为什么成员模板为什么不能是虚函数）：
+```cpp
+class Calc 
+{ 
+public: 
+    template virtual T Add(const T& lhs,const T& rhs) { 
+        T sum = lhs + rhs; 
+        return sum; 
+    } 
+}; 
+
+void main() 
+{ 
+    Calc ins; 
+    int nResult = ins.Add(1,2); 
+    double fResult = ins.Add(1.0,2.0); 
+}
+```
+对于上面的代码，如果编译器允许模板可以是虚函数，那么编译器需要查看main的代码，才能够知道类Calc一共有两个虚函数，一个是`virtual int Add(const int&,const int&)`，另一个是v`irtual double Add(const double&,const double&)`。 因为只有这样才能够确定该类的虚函数表的大小为2，虽然可行，但是费事，代价过高。 
+**(2) 为什么不能带有默认参数？**
+需要注意的是，这里所说的默认参数有两种，必须分清楚：
+> 第一种是 函数的默认参数
+> 第二种是 函数模板的默认模板参数
+> 
+成员模板函数和普通函数一样，可以有函数的默认参数（第一种），但是不可以有函数模板的默认模板参数（第二种）。如： 
+```cpp
+//第一种的情况： 
+template <typename T>
+T sum(T* b,T* e,T result = T()) //这里的result就是函数的默认参数，允许 
+{ 
+    while(b!=e) 
+    result += *b++; 
+    return result; 
+}; 
+//第二种的情况： 
+template <typename T = char>//这里的char为默认模板参数，不允许 
+T f(T a, T b) 
+{ 
+    return a + b; 
+};
+```
+之所以不允许有函数模板的默认模板参数，是因为函数模板的模板参数是在调用的时候编译器根据实参的类型来确定的，如对于上面的第二种情况， 
+```cpp
+int result = f(1,2)         // int f(int a,int b)，确定T为int 
+double result = f(1.0,2.0)  // double f(double a,duoble b))，确定T为double 
+```
+那么template中的T的缺省值char就毫无意义了，也毫无必要。
+但注意，对于上面那些可以通过函数模板的实参演绎模板参数类型的情况，指定缺省的模板实参确实没有意义和必要。但某些情况下，有一些模板参数(比如作为函数的返回值类型)无法通过函数的实参演绎来确定，这个时候指定缺省的模板实参就很有必要，如下情况：
+```cpp
+// 返回类型RT无法通过实参演绎获得，这个时候指定RT的缺省实参就是非常必要的
+template <typename RT, typename T1, typename T2>
+inline RT add(T1 a, T2 b){
+    return a + b;
+}
+```
+
+### 9.3 普通（非类模板）类的成员模板
+```cpp
+// 函数对象类，详见 第14章 的笔记
+class DebugDelete {
+public:
+    DebugDelete(std::ostream &s = std::cerr): os(s) { }
+    // 和其它函数模板一样，T的类型由编译器来推断
+    template <typename T> void operator()(T *p) const{ 
+        os << "deleting unique_ptr" << std::endl; delete p;
+    }
+private:
+    std::ostream &os;
+};
+```
+**使用：**
+```cpp
+double* p = new double;
+DebugDelete d;  // an object that can act like a delete expression
+d(p);           // calls DebugDelete::operator()(double*), which deletes p
+
+int* ip = new int;
+// calls operator()(int*) on a temporary DebugDelete object
+DebugDelete()(ip);
+```
+**解答：**
+(1) `DebugDelete d; d(p);`
+&emsp;&emsp; 调用`DebugDelete::operator()`来释放指针`p`；
+(2) `DebugDelete()(ip)`
+&emsp;&emsp; `DebugDelete()`是新建一个 `DebugDelete临时对象`，然后在这个临时对象上调用`DebugDelete::operator()`来释放指针`ip`；
+
+### 9.4 类模板 的 成员模板
+### 9.4.1 如何在类模板中使用 成员模板？
+&emsp;&emsp; 对于类模板，我们也可以为其定义成员模板，**在此情况下，类和成员各自有自己的、独立的模板参数**。
+对于下面的类模板`Blob`，它的构造函数有自己的慕残类型参数`It`：
+```cpp
+template <typename T> class Blob {
+    template <typename It> Blob(It b, It e); // 注意模板的参数是T，但是构造函数的是It，它们不一样！
+    // ...
+};
+```
+### 9.4.2 在类外定义 成员模板 时 要注意什么？
+和 类模板的普通成员函数 不一样的是，成员模板是函数模板，因此当我们在类模板外定义一个成员模板时，**必须同时为类模板和成员模板**提供模板参数列表，其中类模板的参数列表在前，后跟成员自己的模板参数列表：
+```cpp
+template <typename T>   // 类的类型参数
+template <typename It>  // 构造函数的类型参数
+    Blob<T>::Blob(It b, It e):
+        data(std::make_shared<std::vector<T>>(b, e)) { }
+```
+
+### 9.4.3 如何使用 类模板的成员模板
+&emsp;&emsp; 为了实例化一个类模板的成员模板，我们必须同时提供类、函数模板的实参。
+**类模板的实参**：与往常一样，我们在哪个对象上调用成员模板，编译器就根据该对象的类型来推断类模板参数的实参；
+**成员模板的实参**：和普通函数模板相同，编译器通常根据传递给成员模板的函数实参来推断他的模板实参。
+```cpp
+int ia[] = {0,1,2,3,4,5,6,7,8,9};
+vector<long> vi = {0,1,2,3,4,5,6,7,8,9};
+list<const char*> w = {"now", "is", "the", "time"};
+
+// instantiates the Blob<int> class
+// and the Blob<int> constructor that has two int* parameters
+// 拆开来解答就是：
+//   ① Blob<int> 实例化了 Blob<int>类
+//   ② a1(begin(ia), end(ia)) 实例化了接收两个 int*参数的 构造函数
+Blob<int> a1(begin(ia), end(ia));
+
+// instantiates the Blob<int> constructor that has
+// two vector<long>::iterator parameters
+Blob<int> a2(vi.begin(), vi.end());
+
+// instantiates the Blob<string> class and the Blob<string>
+// constructor that has two (list<const char*>::iterator parameters
+Blob<string> a3(w.begin(), w.end());
+```
+**解答：**
+&emsp;&emsp; **当我们定义`a1`时**，显示指出编译器应该实例化一个`int`版本的`Blob`。而构造函数则根据自己`begin(ia)`和`end(ia)`来推断，结果为`int*`，因此`a1`的定义实例化了`Blob<int>::Blob(int*, int*);`
+&emsp;&emsp; **而a2的定义**使用了已经实例化的` Blob<int>`，并用 `vector<long>::iterator`替代参数`It`来实例化构造函数。
+&emsp;&emsp; **a3**的定义实例化了一个`string`版本的`Blob`，并实例化了该类的成员模板构造函数，其模板参数绑定到了`list<const char*>。
+
+### 9.4.4 下面这个类 含有 成员模板 吗？不算的话怎么改？
+```cpp
+template <typename T> class Exp {
+public:
+    template <typename It> Exp(T b);
+private:
+    T num;
+};
+```
+**解答：**
+&emsp;&emsp; 不算，因为它的成员函数和模板类本身拥有相同的模板参数：`T`，因此不含。改成下面这样就算了：
+```cpp
+template <typename T1> class Exp {
+public:
+    template <typename It> Exp(T2 b); // 注意它们模板类和它的构造函数的模板参数不一样，一个是T1，一个是T2
+private:
+    T num;
+};
+```
+
 
 
 
