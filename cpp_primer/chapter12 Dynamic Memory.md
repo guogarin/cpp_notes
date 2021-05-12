@@ -493,7 +493,8 @@ void f(destination &d /* other parameters */)
 &emsp;
 ## 四、 unique_ptr
 ### 4.1 `unique_ptr` 和 `shared_ptr` 有何区别？
-&emsp;&emsp; 和`shared_ptr`不一样的是，在同一时刻只能允许有一个 `unique_ptr` 指向一个给定的对象
+&emsp;&emsp; 和`shared_ptr`不一样的是，在同一时刻只能允许有一个 `unique_ptr` 指向一个给定的对象。
+&emsp;&emsp; 另一个区别就是：两种指针的删除器的差异。对于shared_ptr来说，删除器是可以重载的，所以其类型是在运行时绑定。而unique_ptr的删除器不能重载，且是unique_ptr类的一部分，在其编译时绑定（具体介绍见第16章的笔记）。
 ### 4.2 有无 `std::make_unique`？
 &emsp;&emsp; 在C++11是没有的，`std::make_unique`是在C++14里加入标准库的
 ### 4.3 如何新建 `unique_ptr`？

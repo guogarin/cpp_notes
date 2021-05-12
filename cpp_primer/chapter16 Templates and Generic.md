@@ -732,18 +732,19 @@ private:
 &emsp;
 ## 10 控制实例化
 ### 10.1 对于同一个模板，如果用同样的类型参数对其进行实例化，则一定只存在一个实例吗？
-&emsp;&emsp; 不一定。当模板被使用时才会被实例化 这一特性意味着，相同的实例可能出现在多个对象文件中。当两个或多个独立编译的源文件使用了相同的模板，并使用了相同的模板参数时，每个文件就都会有该模板的一个实例
+&emsp;&emsp; 不一定。当模板被使用时才会被实例化 这一特性意味着，相同的实例可能出现在多个对象文件中。当两个或多个独立编译的源文件使用了相同的模板，并使用了相同的模板参数时，每个文件就都会有该模板的一个实例。
 
 ### 10.2 如何解决上面说到的问题呢？
-&emsp;&emsp; 在大系统中，在多个文件中实例化相同的模板的额外开销可能非常严重。因此在C++11标准中，我们可以通过**显示实例化(explicit instantiation)**来避免这种开销。
+&emsp;&emsp; 在大系统中，在多个文件中实例化相同的模板的额外开销可能非常严重。因此在C++11标准中，我们可以通过 **显示实例化(explicit instantiation)** 来避免这种开销。
 
-### 10.3 如何使用 显示实例化？
+### 10.3 使用 显示实例化
+#### 10.3.1 语法是怎样的？
 一个显示实例化必须有如下形式：
 ```cpp
 extern template declaration; // 实例化声明
 template declaration;        // 实例化定义
 ```
-其中`declaration`为 一个类或函数 的声明，其中所有模板参数一被替代为模板实参（注意，需要提供具体的实参，比如`int`），例如：
+其中`declaration`为 一个类或函数 的声明，**其中所有模板参数需要被替代为模板实参**（注意，需要提供具体的实参，比如`int`），例如：
 ```cpp
 // 注意，下面两个 一个是声明一个是定义！
 extern template class Blob<string>;             // 声明
@@ -757,7 +758,140 @@ template int compare(const int&, const int&);   // 定义
 extern template class Blob<string>;  // 正确，这是一个声明
 extern template class Blob<T>;       // 错误，必须提供具体的参数类型
 ```
-TODO: 这些还没学完
+#### 10.3.2 使用显示实例化时需要注意什么？
+&emsp;&emsp; 由于编译器在使用一个模板时自动对其实例化，因此`extern声明`必须出现在任何使用此实例化版本的代码之前：
+下面是`Application.cc`：
+```cpp
+// Application.cc
+// 下面两个都是声明，而不是定义，因此必须在其它位置进行实例化
+extern template class Blob<string>;
+extern template int compare(const int&, const int&);
+
+// 注意！Blob 和 compare 都只是声明，因此必须在其它文件提供定义。
+Blob<string> sa1, sa2;  // instantiation will appear elsewhere
+// Blob<int> and its initializer_list constructor instantiated in this file
+Blob<int> a1 = {0,1,2,3,4,5,6,7,8,9};
+Blob<int> a2(a1);       // copy constructor instantiated in this file
+int i = compare(a1[0], a2[0]); // instantiation will appear elsewhere
+```
+下面是`templateBuild.cc`
+```cpp
+// templateBuild.cc
+// 此处包含了Blob 和 compare的定义，其它文件若想使用这两个模板，需要在该文件提供extern声明
+template int compare(const int&, const int&);
+template class Blob<string>; // instantiates all members of the class template
+```
+**解答：**
+在`Application.cc文件`中，我们使用了类模板`template class Blob<string>`和函数模板`template int compare(const int&, const int&)`，但是在该文件中并没有定义(实例化)这两个模板，因此我们必须在其它文件(`templateBuild.cc文件`)中定义(实例化)这两个模板。
+
+### 10.4 `extern实例化声明`的 类模板 和 正常的实例化定义 时 有何不同呢？为什么？
+**(1) 有什么不同？**
+&emsp;&emsp; 一个类模板的实例化定义会实例化该模板的所有成员，包括内联的成员函数。因为
+**(2) 为什么？**
+&emsp;&emsp; 当编译器遇到一个实例化定义时，它不了解程序使用哪些成员函数。因此，与处理类模板的普通实例化不同，编译器会实例化该类的的所有成员，即使我们不使用该成员，它也会被实例化。因此，我们用来显示实例化的一个类模板的类型，必须能用于模板的所有成员。
+ 实例化的方式| 特点 |
+ ---------|----------|
+ 实例化定义  | 会实例化该模板的所有成员 | 
+ 普通实例化    | 只会实例化用到的成员 | 
+
+
+### 总结
+&emsp; (1) 对模板的`extern声明`和对变量的`extern声明`类似，如果带了`extern`就是声明，不带就是定义。而且光声明不行，必须在后面的代码中提供具体的定义，而且只能定义一次
+&emsp; (2) 对模板进行`extern声明`时必须带上 具体的类型形参，比如:
+```cpp
+extern template int compare;`(const int&, const int&);
+```
+&emsp; (3) 在一个类模板的实例化定义中，所用类型必须能用于模板的所有成员函数。（后面有一个习题讲的是这一条规则）
+
+### 10.5 控制实例化 节省开销 的原理是什么？
+&emsp;&emsp; 对于含有`extern声明`的模板的文件，编译器不会为其实例化，即不会生成对应的代码，因为编译器知道你已经在其它文件中实例化了这个模板，这些文件会共用同一个实例化的模板，这样就达到了节省开销的目的。
+
+
+### 10.6 关于 显示实例化的 一些练习
+#### 10.6.1 解释下面这些声明的含义：
+```cpp
+extern template class vector<string>;
+template class vector<Sales_data>;
+```
+**解答：**
+&emsp;&emsp; 第一条语句的`extern表明`不在本文件中生成实例化代码，该实例化的定义会在程序的其它文件中。
+&emsp;&emsp; 第二条语句用S`ales_data`实例化`vector`，在其它文件中可用`extern声明`此实例化，使用此定义。
+
+#### 10.6.2 假设`Nodefault`是一个没有默认构造函数的类，我们可以显式实例化`vector<NoDefault>`吗？如果不可以，解释为什么。
+**解答：**
+&emsp;&emsp;  不可以。原因是：当我们显式实例化`vector<Nodefault>`时，编译器会实例化`vector`的所有成员函数，包括它接受容器大小参数的构造函数。`vector`的这个构造函数会使用元素类型的默认构造函数来对元素进行值初始化，而`NoDefault`没有默认构造函数，从而导致编译错误。
+
+#### 10.6.3 对下面每条标签的语句，解释发生了什么样的实例化（如果有的话）。如果一个模板被实例化，解释为什么；如果未实例化，解释为什么没有。
+```cpp
+template <typename T> class Stack { };
+
+void f1(Stack<char>);       // (a)
+
+class Exercise {
+    Stack<double> &rsd;     // (b)
+    Stack<int> si;          // (c)
+};
+
+int main() {
+    Stack<char> *sc;        // (d)
+    f1(*sc);                // (e)
+    int iObj = sizeof(Stack<string>); // (f)
+}
+```
+**解答：**
+&emsp;&emsp; `(a)、(b)、(c)和(f)`分别发生了Stack对char、double、int和string的实例化，因为这些语句都要用到这些实例化的类。
+&emsp;&emsp; `(d)、(e)`未发生实例化，因为在本文件之前的位置已经对所需的模板进行了实例化。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 11 效率与灵活性
+&emsp;&emsp; 对模板设计者在设计时所面临的选择，标准库智能指针给出了一个很好的展示。
+&emsp;&emsp; `shared_ptr`和`unique_ptr`之间的**明显不同是**它们管理所保存的指针策略 —— 前者给予我们共享指针所有权的能力；后者则独占指针。这一差异对两个类的功能来说是至关重要的。
+&emsp;&emsp; 这两个类的**另一个差异是**他们允许用户重载默认删除器的方式:
+> 我们很容易地重载一个`shared_ptr`的删除器，只要在创建或者`reset`指针时传递给它一个可调用对象即可。
+> 与之相反，删除器的类型是`unique_ptr`对象类型的一部分。用户必须在定义时以显示模板实参的形式提供删除器的类型。因此，对于`unique_ptr`的用户来说，提供自己的删除器就更为复杂。
+> 
+也就是说，对于`shared_ptr`来说，删除器是可以重载的，类型是在运行时绑定。而`unique_ptr`的删除器不能重载，且是`unique_ptr`类的一部分，在其编译时绑定。
+&emsp;&emsp; 如何处理删除器的差异实际上就是这两个类功能上的差异。但是，如我们将要看到的，这一实现策略上的差异可能对性能产生重要影响。
+
+### 11.1 在运行时绑定删除器
+&emsp;&emsp; 虽然我们不知道标准库类型是如何实现的，但可以推断出，`shared_ptr`必须能直接访问删除器。即删除器必须保存为一个指针或者一个封装了指针的类（如`function`）。
+&emsp;&emsp; 我们可以确定不是将删除器直接保存为一个成员，因为删除器的类型直到运行时才会知道。实际上，在一个`shared_ptr`的生存期中，我们可以随时改变删除器的类型。我们可以使用一种类型的删除器构造一个`shared_ptr`，随后使用`reset`赋予此`shared_ptr`另一种类型的删除器。通常，类成员的类型在运行时是不能改变的。因此，不能直接保存删除器。
+&emsp;&emsp; 为了考察删除器是如何工作的，让我们假定`shared_ptr`将它管理的指针保存在一个成员`p`中，且删除器是通过一个名为`del`的成员来访问的。则`shared_ptr`的析构函数必须包含类似下面这样的语句：
+```cpp
+//del的值只有运行时才知道；通过一个指针来调用它
+del ? del(p) : delete p; //del(p)需要运行时跳转到del的地址
+```
+由于删除器是间接保存的，调用`del(p)`需要一次运行时的跳转操作，转到`del`中保存的地址来执行对应的代码。
+
+### 11.2 在编译时绑定删除器
+&emsp;&emsp; 现在，让我们来考察`unique_ptr`可能的工作方式。在这个类中，删除器的类型是类类型的一部分。即，`unique_ptr`有两个模板参数，一个表示它所管理的指针，另一个表示删除器的类型。由于删除器的类型是unique_ptr类型的一部分，因此删除器的成员类型在编译时是知道的，从而删除器可以直接保存在`unique_ptr`对象中。
+&emsp;&emsp; `unique_ptr`的析构函数与`shared_ptr`的析构函数类似，也是对其保存的指针调用用户提供的删除器或执行delete。
+```cpp
+//del在编译时绑定；直接调用实例化删除器
+del(p); //无运行时额外开销
+```
+del的类型是默认删除器类型，或者用户提供的类型。到底是哪种情况没有关系，应该执行的代码在编译时肯定知道。实际上，如果删除器是类似`DebugDelete`之类的东西，这个调用可能被编译为内联形式。
+&emsp;&emsp; 通过在编译时绑定删除器，`unique_ptr`避免了间接调用删除器的运行时开销。通过在运行时绑定删除器，`shared_ptr`使用户重载删除器更加方便。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 12 模板实参推断(templateargument deduction)
+### 12.1 什么是模板实参推断？
+&emsp;&emsp; 
+
+
+
 
 
 
