@@ -901,6 +901,29 @@ del的类型是默认删除器类型，或者用户提供的类型。到底是�
 > &emsp;&emsp;&emsp; ② 一个函数实参 可以转换为 一个该函数类型的指针。
 > 
 其它的转换，诸如：算数转换、派生类向基类的转换、用户自定的类型转换 **都不能** 应用于函数模板。
+&emsp;&emsp; 作为一个例子，我们来看对函数`fobj()`和`freg`的调用，其中`fobj()`拷贝它的参数，而`freg`的参数是引用类型：
+```cpp
+template <typename T> T fobj(T, T); // 传值
+template <typename T> T fref(const T&, const T&); // 传引用
+```
+我们来考虑下面几个调用：
+```cpp
+string s1("a value"); // 非const
+const string s2("another value"); // const
+
+fobj(s1, s2); 
+fref(s1, s2); 
+```
+(1) `fobj(s1, s2); `：
+&emsp;&emsp; 
+(2) `fref(s1, s2); `:
+&emsp;&emsp; 
+```cpp
+// uses premissible conversion to const on s1
+int a[10], b[42];
+fobj(a, b); // calls f(int*, int*)
+fref(a, b); // error: array types don't match
+```
 
 
 
