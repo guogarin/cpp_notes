@@ -927,15 +927,109 @@ fref(a, b); // error: array types don't match
 **(3) `fobj(a, b); `：**
 &emsp;&emsp; 在这个调用中，我们传了数组实参，两个数组大小不同，因此是不同类型。但这不重要，因为两个数组都将被转换为指针，`fobj()`中的模板类型为`int*`.
 **(4) `fref(a, b); `:**
-&emsp;&emsp; 在这个调用中，`fref()`的形参类型是引用，数组不会转换为指针。（这个在本文的后面有解释）
+&emsp;&emsp; 在这个调用中，`fref()`的形参类型是引用，数组不会转换为指针(这个在本文的后面有解释)。因此`a`和`b`的类型是不匹配的，因此是错误的。
 
 ### 12.3 如何理解 “当行参为引用时，数组不能转换为指针” 这句话？
+我们编写了一个函数模板`fref()`，此函数接收两个引用参数：
 ```cpp
-template <typename T> T fref(const T&, const T&){
-    
+template<typename T>
+int fref(const T& v1, const T& v2){
+    return 0; // 此函数体没有实际意义，只是为了通过编译
 }
 ```
+下面我们来给传给`fref`两个数组实参：
+#### 12.3.1 情况一：两个数组的长度不一样
+```cpp
+int main()
+{
+    int a[10] = {1, 2}; // 长度为 10
+    int b[20] = {3, 4}; // 长度为 20
+    cout << "result : " << fref(a, b) << endl;
+}
+```
+编译时报错信息如下
+```
+test.cpp: In function ‘int main()’:
+test.cpp:17:37: error: no matching function for call to ‘fref(int [10], int [20])’
+     cout << "result : " << fref(a, b) << endl;
+                                     ^
+test.cpp:17:37: note: candidate is:
+test.cpp:9:5: note: template<class T> int fref(const T&, const T&)
+ int fref(const T& v1, const T& v2){
+     ^
+test.cpp:9:5: note:   template argument deduction/substitution failed:
+test.cpp:17:37: note:   deduced conflicting types for parameter ‘const T’ (‘int [10]’ and ‘int [20]’)
+     cout << "result : " << fref(a, b) << endl;
+```
+根据报错信息判断报错的原因是 编译器无法确定`T`的类型，因为`数组a,和b`的元素个数不一样，编译器会认为`a、b`是两种不同类型，一个是`int (&ref)[10]`，一个是`int (&ref)[20]`，它们的类型不一样，因此会报错。
+#### 12.3.2 情况一：两个数组的长度一样
+```cpp
+int main()
+{
+    int a[10] = {1, 2}; // 长度为 10
+    int b[10] = {3, 4}; // 长度为 10
+    cout << "result : " << fref(a, b) << endl;
+}
+```
+编译通过，输出如下：
+```
+result : 0
+```
+#### 12.3.3 总结
+&emsp;&emsp; 当引用数组时，引用的类型和该数组的长度有关，对于`a[10]`和`b[20]`：
+```cpp
+a[10] 的对应类型： int (&a)[10]
+b[20] 的对应类型： int (&b)[20]
+```
+因此编译器无法判断`T`的具体类型，因此会报错。当我们传两个长度一样的数组进去的时候，代码顺利通过编译，这一点也证明了这一结论。
 
+#### 12.3.4 如果想传两个长度不一样的数组进去，应该怎么修改 函数模板`fref()`？
+&emsp;&emsp; 传两个长度不一样的数组进去时，`fref()`报错了，是因为编译器无法确定`T`的类型。那只要我们新增一个从参数类型就行了：
+```cpp
+// 相对于 template<typename T>，新版本新增了一个参数类型T2
+template<typename T1, typename T2>// 
+int fref(const T1& v1, const T2& v2){ 
+    return 0;
+}
+
+int main()
+{
+    int a[10] = {1, 2};
+    int b[20] = {3, 4};
+    cout << "result : " << fref(a, b) << endl;
+}
+```
+最后顺利通过编译，运行结果如下：
+```
+result : 0
+```
+
+### 12.4 如果想使用多个函数的形参，应该怎么做？
+&emsp;&emsp; 一个模板类型参数可以用作多个函数形参的类型。由于只允许几种类型转换，因此传递给这些形参的实参必须具有相同的类型，如果推断出的类型不匹配，则调用就是错误的，例如对于`compare()`函数，它接收两个`const T&`，它的实参必须是相同的类型：
+```cpp
+template <typename T> int compare(const T&, const T&);
+
+long lng;
+compare(lng, 1024); // 错误，不能实例化compare(long, int)
+```
+如果希望允许函数实参进行正常的类型转换，我们可以将函数模板定义为两个类型参数：
+```cpp
+// argument types can differ but must be compatible
+template <typename A, typename B>
+int flexibleCompare(const A& v1, const B& v2)
+{
+    if (v1 < v2) return -1;
+    if (v2 < v1) return 1;
+    return 0;
+}
+```
+现在就可以提供不同类型的实参了：
+```cpp
+long lng;
+compare(lng, 1024); // 错误，不能实例化compare(long, int)
+```
+
+### 12.5 
 
 
 
