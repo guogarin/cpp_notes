@@ -1029,7 +1029,31 @@ long lng;
 compare(lng, 1024); // 错误，不能实例化compare(long, int)
 ```
 
-### 12.5 
+### 12.5 如果 函数的参数类型 不是模板参数，可以进行类型转换吗？
+&emsp;&emsp; 可以的，如果函数参数类型不是函数参数，则对函数进行正常的类型转换。
+我们来看下面的`print()`函数，它的第一个参数`os`是已知类型`ostream &`，第二个参数`obj`则是模板参数类型：
+```cpp
+template <typename T> ostream &print(ostream &os, const T &obj){
+    return os << obj;
+}
+```
+由于`os`的类型是固定的，因此当调用`print()`时，传递给它的实参会进行正常的类型转换：
+```cpp
+print(cout, 42);    // instantiates print(ostream&, int)
+
+ofstream f("output");
+print(f, 10);       // uses print(ostream&, int); converts f to ostream&
+```
+&emsp;&emsp; 在第一个调用`print(cout, 42);`中，第一个实参`cout`是严格匹配的，因此会实例化接收一个`ostream&`和一个`int`的`print`版本。
+&emsp;&emsp; 在第二个调用`print(f, 10);`中，第一个实参`f`的类型是`ofstream`，但是它可以转换为`ostream&`，由于此参数的类型不依赖于模板参数，因此编译器会将`f`隐式转换为`ostream&`。
+
+### 12.6 
+
+
+
+
+
+
 
 
 
