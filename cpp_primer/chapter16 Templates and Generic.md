@@ -1047,8 +1047,37 @@ print(f, 10);       // uses print(ostream&, int); converts f to ostream&
 &emsp;&emsp; 在第一个调用`print(cout, 42);`中，第一个实参`cout`是严格匹配的，因此会实例化接收一个`ostream&`和一个`int`的`print`版本。
 &emsp;&emsp; 在第二个调用`print(f, 10);`中，第一个实参`f`的类型是`ofstream`，但是它可以转换为`ostream&`，由于此参数的类型不依赖于模板参数，因此编译器会将`f`隐式转换为`ostream&`。
 
-### 12.6 
-
+### 12.6 显式模板实参(explicit template argument)
+#### 12.6.1 显式模板实参 在什么时候 能发挥作用？
+&emsp;&emsp; 在某些情况下，编译器无法推断出模板实参的类型，我们可以使用 显式模板实例化。
+#### 12.6.2 如何使用显式模板实参？
+**(1) 如何定义一个需要 显式模板参数 的函数模板？**
+```cpp
+// 编译器可以推断T2、T3的类型，但是无法推断T1 的类型
+template <typename T1, typename T2, typename T3>
+T1 sum(T2, T3);
+```
+在上面函数模板`sum()`中，编译器无法推断`T1`的类型，因此在调用它的时候，我们必须为其提供一个 显式模板实参。
+**(2) 如何提供模板实参？**
+&emsp;&emsp; 我们提供显式模板实参的方式和定义类模板实例的方式相同。显式模板实参 在尖括号`如：<int>`中给出，位于函数名之后，实参列表之前：
+```cpp
+auto val3 = sum<long long>(i, lng); // long long sum(int, long)
+```
+#### 12.6.3 使用 显式模板实参时需要注意什么？
+&emsp;&emsp; 显式模板实参 按从左到右的顺序 与对应的模板参数匹配，第一个模板实参与第一个模板参数匹配，第二个模板实参与第二个模板参数匹配，依此类推。而且只有尾部（最右）参数的显示模板实参可以忽略，而且前提是它们可以从函数参数推断出来。
+我们来看一个不好的设计：
+```cpp
+// poor design: users must explicitly specify all three template parameters
+template <typename T1, typename T2, typename T3>
+T3 alternative_sum(T2, T1);
+```
+在上面的函数模板`alternative_sum()`中，`T2, T1`可以根据实参来推断，但`T3`是需要用户指定的，而`T3`又在 类型参数列表 的最右边，这就导致用户必须得为所有3个形参指定实参：
+```cpp
+// error: can't infer initial template parameters
+auto val3 = alternative_sum<long long>(i, lng);
+// ok: all three parameters are explicitly specified
+auto val2 = alternative_sum<long long, int, long>(i, lng);
+```
 
 
 
