@@ -1079,7 +1079,35 @@ auto val3 = alternative_sum<long long>(i, lng);
 auto val2 = alternative_sum<long long, int, long>(i, lng);
 ```
 
+### 12.7 尾置返回类型和类型转换 
+#### 12.7.1 如果要编写一个模板函数，这个函数接收一对迭代器表示一个序列，函数返回序列中的一个元素的引用，应该怎么写？
+&emsp;&emsp; 当我们希望用户确定返回类型时，用显示模板实参表示模板函数的返回类型是很有效的。
+&emsp;&emsp; 但在其他情况下，要求显式指定模板实参会给用户增添额外负担，而且不会带来什么好处。例如，我们可能希望编写一个函数，接受表示序列的一对迭代器和返回序列中一个元素的引用：
+```cpp
+template <typename It>
+??? &fcn(It beg, It end)
+{
+    // 处理序列
+    return *beg; // return a reference to an element from the range
+}
 
+vector<int> vi = {1,2,3,4,5};
+Blob<string> ca = { "hi", "bye" };
+auto &i = fcn(vi.begin(), vi.end()); // fcn should return int&
+auto &s = fcn(ca.begin(), ca.end()); // fcn should return string&
+```
+在上面的例子中，我们知道函数应该返回`*beg`，而且知道我们可以用`decltype(*beg)`来获取此表达式的类型。**但是，在编译器遇到函数的参数列表之前，`beg`都是不存在的。** 为了定义此函数，我们必须使用 尾置返回类型(C++ Primer 6.3.3)。由于尾置返回出现在参数列表之后，它可以使用函数的参数：
+
+```cpp
+// a trailing return lets us declare the return type after the parameter list is seen
+template <typename It>
+auto fcn(It beg, It end) ->/*beg已经出现啦，可以使用 decltype了*/ decltype(*beg)
+{
+    // process the range
+    return *beg; // return a reference to an element from the range
+}
+```
+在上面的`fcn()`中，我们通知编译器`fcn()`的返回类型与解引用`beg`参数的结果类型相同。解引用运算符返回一个左值，因此通过`decltype`推断的类型为`beg`表示的元素的类型的引用，因此如果对一个`string`序列调用`fcn()`，返回类型将是`string&`。如果是`int`序列，则返回类型是`int&`。
 
 
 
