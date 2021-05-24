@@ -1078,6 +1078,17 @@ auto val3 = alternative_sum<long long>(i, lng);
 // ok: all three parameters are explicitly specified
 auto val2 = alternative_sum<long long, int, long>(i, lng);
 ```
+#### 12.6.4 正常的类型转换 应用于 显式指定的实参
+&emsp;&emsp; 对于用普通类型定义的函数实参，允许进行正常的类型转换。出于同样的原因，对于模板类型已经显式指定了的函数实参，也进行正常的类型转换：
+```cpp
+template <typename T> int compare(const T&, const T&);
+
+long lng;
+compare(lng, 1024);         // error: template parameters don't match
+compare<long>(lng, 1024);   // ok: instantiates compare(long, long)
+compare<int>(lng, 1024);    // ok: instantiates compare(int, int)
+```
+在上面的代码中，第一个调用是错误的，因为传递给`compare`的实参必须具有相同的类型。而我们显式指定模板类型参数，就可以正常进行类型转换了。因此，调用`compare<long>`等价于调用一个接受两个`const long&`参数的函数，1024自动转化为`long`。第三个调用中，`T`被显式指定为`int`，因此`lng`被转换为`int`。
 
 ### 12.7 尾置返回类型和类型转换 
 #### 12.7.1 如果要编写一个模板函数，这个函数接收一对迭代器表示一个序列，函数返回序列中的一个元素的引用，应该怎么写？
@@ -1108,8 +1119,40 @@ auto fcn(It beg, It end) ->/*beg已经出现啦，可以使用 decltype了*/ dec
 }
 ```
 在上面的`fcn()`中，我们通知编译器`fcn()`的返回类型与解引用`beg`参数的结果类型相同。解引用运算符返回一个左值，因此通过`decltype`推断的类型为`beg`表示的元素的类型的引用，因此如果对一个`string`序列调用`fcn()`，返回类型将是`string&`。如果是`int`序列，则返回类型是`int&`。
+#### 12.7.2 如何将上面的 `fcn()`改为返回该元素的值，而不是它的引用？
+&emsp;&emsp; 我们知道，解引用一个迭代器后得到的是 该迭代器所指向元素的引用，因此我们需要将引用移除，这可以使用 标准库的类型转换模板来做到，这些模板定义在`type_traits`中。
+&emsp;&emsp; 在本例中，我们可以使用`remove_reference`来获取元素类型：
+```cpp
+// must use typename to use a type member of a template parameter; see § 16.1.3 (p.670)
+template <typename It>
+auto fcn2(It beg, It end) -> typename remove_reference<decltype(*beg)>::type 
+                    // typename告诉编译器remove_reference<decltype(*beg)>::type是一个类型
+{
+    // process the range
+    return *beg; // return a copy of an element from the range
+}
+```
 
+### 12.8 函数指针和实参推断
+#### 12.8.1 当使用 函数模板 来初始化一个函数指针时，编译器如何推断模板实参？
+编译器将通过指针类型来推断模板实参。
+```cpp
+template <typename T> int compare(const T&, const T&);
+// pf1 指向实例n int compare(const int&, const int&)
+int (*pf1)(const int&, const int&) = compare;
+```
+在`pf1`中，它的参数类型决定了`T`的模板实参类型，在`pf1`中，`T`的模板实参类型为`int`。
+#### 12.8.2 如果不能从函数指针类型确定模板实参，会发生什么？
+会报错：
+```cpp
+void func(int(*)(const string&, const string&));
+void func(int(*)(const int&, const int&));
+func(compare); // 错误: 此处使用的是compare的哪个实例呢？
+```
+这段代码错误在于，通过`func()`的参数类型无法确定模板实参的唯一类型，对`func()`的调用既可以实例化接受`int`的`compare`版本，也可以实例化接受`string`的版本。由于不能确定`func()`的实参的唯一实例化版本，此调用将编译失败。
 
+### 12.9 模板实参推断 和 引用
+#### 12..9.1 
 
 
 
