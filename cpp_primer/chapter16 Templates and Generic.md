@@ -1275,3 +1275,5 @@ https://blog.csdn.net/LG1259156776/article/details/77992822?utm_source=blogxgwz1
 2. [怎么样理解:当行参为引用时 数组不能转换为指针](https://bbs.csdn.net/topics/350241300)
 3. [C++ 引用折叠和右值引用参数](https://blog.csdn.net/Rengachan/article/details/109997911)
 4. [现代C++之万能引用、完美转发、引用折叠](https://zhuanlan.zhihu.com/p/99524127)
+5. [引用折叠和完美转发](https://zhuanlan.zhihu.com/p/50816420)
+6. [谈谈完美转发(Perfect Forwarding)：完美转发 = 引用折叠 + 万能引用 + std::forward](https://zhuanlan.zhihu.com/p/369203981)
