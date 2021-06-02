@@ -166,8 +166,8 @@ int * p2 = new (nothrow) int; // 若分配失败，则new将返回一个空指�
 (2) 通过日志：
 &emsp;&emsp; 将new和delete分别封装为函数，专门用于分配内存和释放内存，并在函数中记录 所分配内存的地址和长度、释放内存的地址和长度，等到停服务的时候看一下能不能匹配上就能定位内存泄露的代码了。
 ### 1.10 使用delete释放内存时要注意什么？
-&emsp;&emsp; (1) delete 接收的是 指针；
-&emsp;&emsp; (2) 传给delete的必须是 **指向动态分配的内存的指针** 或 **空指针**；
+&emsp;&emsp; **(1)** delete 接收的是 指针；
+&emsp;&emsp; **(2)** 传给delete的必须是 **指向动态分配的内存的指针** 或 **空指针**；
 ```cpp 
 int i, *pi1 = &i, *pi2 = nullptr;
 double *pd = new double(33), *pd2 = pd;
@@ -180,6 +180,15 @@ delete pi2; // 正确: delete 空指针是没问题的
 const int *pci = new const int(1024);
 delete pci; // 正确:  const 对象的值不能改变，但是可以被销毁。
 ```
+&emsp;&emsp; **(3)** 释放动态分配的数组时，要在中间加`[]`，即应该使用`delete[] ptr`:
+```cpp
+string *const p = new string[n]; // 构造 n个 空string(第一次赋值：n个string对象都被默认初始化为空
+
+// 相关操作，略...
+
+delete[] p; // 释放
+```
+
 ### 1.11 什么是 空悬指针(dangling pointer)？如何解决？
 &emsp;&emsp; 对于指针 p，它指向的是一块动态分配的内存，在这块内存将在被delete后被释放，此时指针p仍然指向了这段被delete的指针，此时指针p就被称为 空悬指针(dangling pointer)。
 &emsp;&emsp; 内存delete之后，马上将指向该内存的指针置为 nullptr，但这也只能提供有限的保护，来看下面的代码：
