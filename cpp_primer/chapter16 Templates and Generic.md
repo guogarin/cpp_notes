@@ -1235,8 +1235,118 @@ f3(i);  // f3接收一个右值引用，而i是一个普通对象，这样是否
   * 如果没有非模板函数，有多个函数模板，则选择其中一个比其他模板更特例化的模板
   * 否则此调用有歧义
 
-### 14.2 
-https://www.zhihu.com/question/39320511
+### 14.2 对于下面的代码，匹配过程应该是怎样的？
+```cpp
+template<typename T>
+string debug_rep(const T &t){
+    ostringstream ret;
+    ret << t ;
+    return ret.str();
+}
+
+
+template<typename T>
+string debug_rep(T *p){
+    ostringstream ret;
+    ret << "Pointer: " << p;
+    if(p)
+        ret << " "  << debug_rep(*p);
+    else
+        ret << "null pointer";
+    return ret.str();
+}
+
+
+int main()
+{
+    string s("Hello China!");
+    cout << debug_rep(s) << endl;
+    cout << debug_rep(&s) << endl;
+
+    const string *sp = &s;
+    cout << debug_rep(sp) << endl;
+}
+```
+**解答：**
+**① debug_rep(s)**
+&emsp; 对于这个调用，只有第一个版本的`string debug_rep(const T &t);`是可行的，`string debug_rep(T *p);`要求一个指针参数，但实参`s`并不是指针，因此只能调用第一个。
+**② debug_rep(&s)**
+&emsp; `&s`是一个地址，因此两个`debug_rep()`模板函数都可以，对应的实例为：
+  * `debug_rep(const string* &)`：此函数由`string debug_rep(const T &t);`实例化而来，`T`被绑定为`string*`。
+  * `debug_rep(string*)`：此函数由`string debug_rep(T *p);`实例化而来，`T`被绑定为`string`。
+上面两个实例化版本都是可行的，但是第一个版本要执行 普通指针->`const`指针 的转换，正常的匹配规则告诉我们应该选择第二个版本，编译器实际上也确是选择了第二个版本。
+**③ debug_rep(sp)**
+&emsp; 
+  * `debug_rep(const string* &)`：此函数由`string debug_rep(const T &t);`实例化而来，`T`被绑定为`string*`。
+  * `bug_rep(const string*)`：此函数由`string debug_rep(T *p);`实例化而来，`T`被绑定为`const string`。
+对于这个调用，正常的函数规则无法区分它们，我们可能会觉得这个调用时有歧义的，但是，根据重载函数模板的特殊规则，此调用被解析为`debug_rep(T *p)`，即，更特例化的版本。
+编译后，运行结果为：
+```
+Hello China!
+Pointer: 0x7fffcd2f23f0 Hello China!
+Pointer: 0x7fffcd2f23f0 Hello China!
+```
+
+### 14.3 相对于 函数重载，模板函数的重载有什么不一样的规则吗？为什么要有这个规则？
+#### 14.3.1 有没有？
+> 当有多个重载模板对一个调用提供同样好的匹配时，应选择 **最特例化** 的版本。
+> 
+#### 14.3.2 为什么？
+就拿上面的 两个重载模板函数`debug_rep()` 来说吧，对于下面的调用：
+```cpp
+const string *sp = &s;
+cout << debug_rep(sp) << endl;
+```
+会有两个同样好的调用：
+  * `debug_rep(const string* &)`：此函数由`string debug_rep(const T &t);`实例化而来，`T`被绑定为`string*`。
+  * `bug_rep(const string*)`：此函数由`string debug_rep(T *p);`实例化而来，`T`被绑定为`const string`。
+这个时候编译器就犯难了，这两个匹配都可以，选哪个好呢？
+但是问题在于模板`debug_rep(const T&t)`本质上可以用于任何类型，包括指针类型，如果没有这个规则，那么传递`const`指针的调用永远会是有歧义的。
+
+### 14.4 如果 一个普通函数 和 一个函数模板 同时都匹配，编译器会怎么选择？为什么？
+**选哪个？** 
+&emsp;&emsp; 编译器会选择 普通函数，我们用代码来验证一下吧，我们来写一个普通函数版本的`debug_rep()`和之前的模板函数版本的一起试验一下：
+```cpp
+template<typename T>
+string debug_rep(const T &t){
+    ostringstream ret;
+    ret << t ;
+    return ret.str();
+}
+
+
+template<typename T>
+string debug_rep(T *p){
+    ostringstream ret;
+    ret << "Pointer: " << p;
+    if(p)
+        ret << " "  << debug_rep(*p);
+    else
+        ret << "null pointer";
+    return ret.str();
+}
+
+
+string debug_rep(string &s){
+    return '"' + s + '"';
+}
+
+
+int main()
+{
+    string s("Hello China!");
+    cout << debug_rep(s) << endl;
+}
+```
+**编译后运行结果为：**
+```
+"Hello China!"
+```
+对于上面的调用，有两个同样好的可行函数供编译器选择：
+• `debug_rep<string>(const string&)`, the first template with T bound tostring
+• `debug_rep(const string&)`, the ordinary, nontemplate function
+从运行结果可以看出，编译器选择了常规版本的`debug_rep`。
+**为什么？** 
 
 #### 类模板可以被重载吗？为什么？
 https://www.zhihu.com/question/365037509
@@ -1244,7 +1354,7 @@ https://www.zhihu.com/question/365037509
 
 
 
-
+### 如何编写接受指针形参的模板？TODO:
 
 
 
