@@ -1338,15 +1338,17 @@ int main()
     cout << debug_rep(s) << endl;
 }
 ```
-**编译后运行结果为：**
+对于上面的调用，有两个同样好的可行函数供编译器选择：
+&emsp; • `debug_rep<string>(const string&)`, the first template with T bound tostring
+&emsp; • `debug_rep(const string&)`, the ordinary, nontemplate function
+在上面的例子中，两个函数具有相同的参数列表，因此它俩都是最佳匹配。但是编译器会选择非模板版本。当存在多个同样好的函数模板时，编译器会选择最特例化的版本，出于相同的原因，一个非模板函数比一个函数模板更好。
+**上面的代码编译后的运行结果为：**
 ```
 "Hello China!"
 ```
-对于上面的调用，有两个同样好的可行函数供编译器选择：
-• `debug_rep<string>(const string&)`, the first template with T bound tostring
-• `debug_rep(const string&)`, the ordinary, nontemplate function
 从运行结果可以看出，编译器选择了常规版本的`debug_rep`。
 **为什么？** 
+&emsp;&emsp; 当存在多个同样好的函数模板时，编译器会选择最特例化的版本，出于相同的原因，一个非模板函数比一个函数模板更好，因此如果一个非函数模板和一个函数模板提供同样好的匹配时，编译器会选择非模板版本。
 
 #### 类模板可以被重载吗？为什么？
 https://www.zhihu.com/question/365037509
