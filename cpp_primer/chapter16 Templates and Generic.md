@@ -1327,7 +1327,7 @@ string debug_rep(T *p){
 }
 
 
-string debug_rep(string &s){
+string debug_rep(const string &s){
     return '"' + s + '"';
 }
 
@@ -1349,6 +1349,25 @@ int main()
 从运行结果可以看出，编译器选择了常规版本的`debug_rep`。
 **为什么？** 
 &emsp;&emsp; 当存在多个同样好的函数模板时，编译器会选择最特例化的版本，出于相同的原因，一个非模板函数比一个函数模板更好，因此如果一个非函数模板和一个函数模板提供同样好的匹配时，编译器会选择非模板版本。
+
+### 14.5 对于下面的调用，将匹配哪个`debug_rep`？为什么？
+```cpp
+template<typename T> string debug_rep(const T &t);
+template<typename T> string debug_rep(T *p)
+string debug_rep(const string &s);
+
+cout << debug_rep("hi world!") << endl; //
+```
+编译器会选择`debug_rep(T *p)`版本。
+**为什么？**
+在上面的调用中，上面三个`debug_rep`都是可行的：
+&emsp; • `debug_rep(const T&)`, with `T` bound to `char[10]`
+&emsp; • `debug_rep(T*)`, with `T` bound to `const char`
+&emsp; • `debug_rep(const string&)`, which requires a conversion from `const char*` to `string`
+对于给定实参`"hi world!"`来说，两个模板都提供精确匹配：
+* 第二个模板需要进行一次数组到指针的转换，而对于函数匹配来说，这种转换被认为是精确匹配。
+* 对于非模板版本来说，它也是可行的，但是要进行一次用户定义的类型转换，因此它没有精确匹配那么好，所以两个模板成为可能调用的函数。
+与之前一样，编译器会选择更为 特例化的版本，因此编译器会选择`debug_rep(T *p)`。
 
 #### 类模板可以被重载吗？为什么？
 https://www.zhihu.com/question/365037509
