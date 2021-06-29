@@ -1370,19 +1370,141 @@ cout << debug_rep("hi world!") << endl; //
 与之前一样，编译器会选择更为 特例化的版本，因此编译器会选择`debug_rep(T *p)`。
 
 #### 类模板可以被重载吗？为什么？
-https://www.zhihu.com/question/365037509
+不能
 
 
 
 
-### 如何编写接受指针形参的模板？TODO:
 
 
-
-
+&emsp;
+&emsp;
+## 15. 如何编写接受指针形参的模板？
+下面两个模板都可以接受指针参数：
 ```cpp
+template<typename T>
+string debug_rep(const T &t){
+    ostringstream ret;
+    ret << t ;
+    return ret.str();
+}
 
+template<typename T>
+string debug_rep(T *p){
+    ostringstream ret;
+    ret << "Pointer: " << p;
+    if(p)
+        ret << " "  << debug_rep(*p);
+    else
+        ret << "null pointer";
+    return ret.str();
+}
 ```
+对于像下面的调用
+```cpp
+string s("Hello China!");
+cout << debug_rep(&s) << endl;
+```
+它们分别可以实例化为：
+  * `debug_rep(const string* &)`：此函数由`string debug_rep(const T &t);`实例化而来，`T`被绑定为`string*`。
+  * `debug_rep(string*)`：此函数由`string debug_rep(T *p);`实例化而来，`T`被绑定为`string`。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 16. 可变参数模板(variable template)
+### 16.1 什么是可变参数模板？
+&emsp;&emsp; 一个可变参数模板就是一个接受可变数目参数的模板函数或模板类。
+
+### 16.2 什么是 参数包(parameter packet)？
+&emsp;&emsp; 可变数目的参数被称为参数包(parameter packet)，一共存在两种参数包：模板参数包(template packet)，表示零个或多个模板参数；函数参数包(function parameter)，表示零个或多个函数参数：
+```cpp
+// Args 是一个模板参数包; rest 是一个函数参数包
+// Args 表示零个或多个模板类型参数
+// rest 表示零个或多个函数参数
+template <typename T, typename... Args>
+void foo(const T &t, const Args& ... rest);
+```
+
+### 16.3 如何编写 可变参数模板？
+&emsp;&emsp; 我们 用一个省略号 来指出一个模板参数或函数参数表示一个包，在一个模板参数列表中，`class`或`typename`指出接下来的参数表示零个或多个类型的列表：一个类型名后面跟一个省略号表示零个或多个给定类型的非类型参数的列表。在函数参数列表中，如果一个参数的类型是一个模板参数包，则此参数也是一个函数参数包，例如：
+```cpp
+template <typename T, typename... Args>
+void foo(const T &t, const Args& ... rest);
+```
+对面上面的模板函数`foo()`：
+* 它有一个名为`T`的类型参数，和一个名为`Args`的模板参数包，这个包表示零个或多个额外的类型参数。
+* 它的参数列表包含 一个`const &`类型的参数，指向`T`的类型，还包含一个名为`rest`的函数参数包，此包表示零个或多个函数参数。
+
+### 16.4 一个练习
+```cpp
+template <typename T, typename... Args>
+void foo(const T &t, const Args& ... rest);
+
+int i = 0; double d = 3.14; string s = "how now brown cow";
+foo(i, s, 42, d);  
+foo(s, 42, "hi");  
+foo(d, s);         
+foo("hi");         
+```
+#### 16.4.1  对于上面的调用，包里一共有几个参数？
+**解答：**
+```cpp
+foo(i, s, 42, d);   // three parameters in the pack
+foo(s, 42, "hi");   // two parameters in the pack
+foo(d, s);          // one parameter in the pack
+foo("hi");          // empty pack
+```
+#### 16.4.2 对于上面的调用，编译器会将其实例化成什么样的？
+```cpp
+void foo(const int&, const string&, const int&, const double&);
+void foo(const string&, const int&, const char[3]&);
+void foo(const double&, const string&);
+void foo(const char[3]&);
+```
+
+### 16.5 如何判断类型参数的个数？
+使用`sizeof...`运算符（注意有三个`.`），类似于`sizeof`，`sizeof...`也返回一个常量表达式，表达式的内容就是参数包中的参数的个数。
+
+### 16.6 对于可变模板参数，如果传进多个相同的类型的参数，会对参数包中包含的参数个数有影响吗？
+没有影响：
+```cpp
+template<typename ...Args>
+void g(Args ... args){
+    cout <<"Args : " << sizeof...(Args) << endl;
+    cout <<"args : " << sizeof...(args) << endl;
+}
+
+int main()
+{
+    int a = 0;
+    char c[7]  = "Hello ";
+    string s = "world!";
+    string s2= "centOS";
+    g(a, c, s);
+    g(a, s, s2); // s和s2都是string类型
+}
+```
+**运行结果：**
+```
+Args : 3
+args : 3
+Args : 3
+args : 3
+```
+**解答：**
+&emsp;&emsp; 可以看到，`g(a, s, s2);`中的s和s2都是string类型，但参数类型依然为3，因此传多个相同的类型的参数，对参数包中包含的参数个数没有影响。
+
+
+
+
+
+
+
 
 
 ## 重写`strBlob`类
