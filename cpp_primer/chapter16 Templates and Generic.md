@@ -1499,8 +1499,105 @@ args : 3
 **解答：**
 &emsp;&emsp; 可以看到，`g(a, s, s2);`中的s和s2都是string类型，但参数类型依然为3，因此传多个相同的类型的参数，对参数包中包含的参数个数没有影响。
 
+### 16.7 看代码，回答问题？
+```cpp
+template<typename T>
+ostream& print(ostream &os, const T &t){
+    return os << t << "    *** normal ***" << endl;
+}
 
+template<typename T, typename ... Args>
+ostream& print(ostream &os, const T &t, Args& ... rest){
+    os << t << "    *** variable parameter *** "<< endl;
+    return print(os, rest...);
+}
 
+int main()
+{
+    string s1 = "I am";
+    int i = 8;
+    string s2 = "years old.";
+    
+}
+```
+#### 16.7.1 分别解释一下 两个版本的模板函数`print()`
+**print(ostream &os, const T &t)**
+&emsp;&emsp; 这是一个常规的模板函数，接收固定的参数个数。
+**ostream& print(ostream &os, const T &t, Args& ... rest)**
+&emsp;&emsp; 这是一个可变参数版本的`print()`，它打印`t`的实参，并调用自身来打印函数参数包中的剩余值。这个可变版本接收三个参数：一个`ostream &`，一个`const T &`，一个参数包。
+#### 16.7.2 `print(cout , s1, i, s2);`
+这是一个递归调用，执行顺序：
+
+调用                      | t       | rest...|
+------------------------ |----------|---------|
+ print(cout , s1, i, s2) | i        | i, s2 |
+ print(cout , i, s2)     | s        | s2 |
+ print(cout , s2)        | 调用非可变参数版本的`print()` | 无 |
+&emsp;&emsp; 对于前面两个调用，它们只能与可变参数版本的`print()`匹配，非可变参数版本是不可行的，因为这两个调用分别传递4个和3个参数，而非可变参数版本的`print()`只接受两个实参。
+&emsp;&emsp; 对于最后一个调用`print(cout , s2) `，两个版本的`print()`都是可行的，但非可变参数版本的`print()`更为特例化，因此编译器会选择它。
+**运行结果：**
+```
+I am    *** variable parameter *** 
+8    *** variable parameter *** 
+years old.    *** normal ***
+```
+根据运行结果，也证实了这个结论。
+
+### 16.8 包扩展
+#### 16.8.1 什么是扩展包？
+&emsp;&emsp; 对于一个参数包(如上面的`print()`中的`rest`),我们除了获取其大小外（通过`sizeof...`运算符），唯一能做的就是扩展它(expand)。**扩展包就是** 对包中的每一个元素都应用一个指定的模式，并得到展开后的逗号分隔的列表, 这里的模式通常为一些类型限定修饰符。
+#### 16.8.2 如何 触发扩展包？
+&emsp;&emsp; 通过在模式右边放一个省略号(...)触发扩展操作。就拿前面的可变参数版本的`print()`来说吧，它包含了两个扩展：
+```cpp
+template <typename T, typename... Args>
+ostream &print(ostream &os, const T &t, const Args&... rest)// 第一个：扩展 Args 
+{
+    os << t << ", ";
+    return print(os, rest...); // 第二个：扩展 rest
+}
+```
+第一个扩展操作（即`const Args&... res`）扩展模板参数包，为`print()`生成函数参数列表。
+第二个扩展操作（即`print(os, rest...)`）为`print`调用生成实参列表。
+因此对于`Args`的扩展中，编译器将模式`const Args&`引用到模板参数包`Args`中的每个元素。因此，此模式的扩展结果是一个逗号分隔的零个或多个类型的列表，例如对于调用
+```cpp
+print(cout, i, s, 42); // two parameters in the pack
+```
+最后两个参数 `s`和`42`的类型和模式一起确定了尾置参数的类型。此调用最终被实例化为：
+```cpp
+ostream&
+print(ostream&, const int&, const string&, const int&);
+```
+#### 16.8.3 
+```cpp
+template<typename T>
+string debug_rep(const T &t){
+    ostringstream ret;
+    ret << t ;
+    return ret.str();
+}
+
+template<typename T>
+ostream& print(ostream &os, const T &t){
+    return os << t << "    *** normal ***" << endl;
+}
+
+template<typename T, typename ... Args>
+ostream& print(ostream &os, const T &t, Args& ... rest){
+    os << t << "    *** variable parameter *** "<< endl;
+    return print(os, rest...);
+}
+
+template<typename ... Args>
+ostream& erroMsg(ostream &os, const Args&... rest)
+{
+    return print(os, debug_rep(rest)...);
+}
+
+int main()
+{
+    erroMsg(cerr,"Hello", "this", "is", "Jack!");
+}
+```
 
 
 
@@ -1539,8 +1636,6 @@ https://blog.csdn.net/LG1259156776/article/details/77992822?utm_source=blogxgwz1
 ### 如何理解 `typedef typename std::vector<T>::size_type size_type;` ？
 在本文中的 _在类模板中 使用 类的类型成员_ 小结中有讲述。
 ```cpp
-
-
 
 ```
 
