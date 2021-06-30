@@ -1567,7 +1567,7 @@ print(cout, i, s, 42); // two parameters in the pack
 ostream&
 print(ostream&, const int&, const string&, const int&);
 ```
-#### 16.8.3 
+#### 16.8.3 看代码，回答问题
 ```cpp
 template<typename T>
 string debug_rep(const T &t){
@@ -1582,7 +1582,7 @@ ostream& print(ostream &os, const T &t){
 }
 
 template<typename T, typename ... Args>
-ostream& print(ostream &os, const T &t, Args& ... rest){
+ostream& print(ostream &os, const T &t, const Args& ... rest){
     os << t << "    *** variable parameter *** "<< endl;
     return print(os, rest...);
 }
@@ -1598,6 +1598,32 @@ int main()
     erroMsg(cerr,"Hello", "this", "is", "Jack!");
 }
 ```
+##### 16.8.3.1 如何理解`print(os, debug_rep(rest)...)`?
+&emsp;&emsp; 这个`print()`调用使用了模式`debug_rep(rest)`，此模式表示我们希望对函数参数包`rest`中的每个元素调用`debug_rep()`，就好像我们这么写代码：
+```cpp
+print(cerr, "Hello", debug_rep("this"), debug_rep("is"), debug_rep("Jack!"));
+```
+##### 16.8.3.2 如果将`print(os, debug_rep(rest)...)` 改成 `print(os, debug_rep(rest...))`，正确吗？
+&emsp;&emsp; 不正确，`print(os, debug_rep(rest...))`是在`debug_rep()`中扩展了`rest`，它等价于：
+```cpp
+print(cerr, "Hello", debug_rep("Hello", "this", "is", "Jack!"));
+```
+而`debug_rep()`没有定义可变实参的版本，所以错了。
+##### 16.8.3.3 运行结果是怎样的？
+**编译后运行：**
+```
+Hello    *** variable parameter *** 
+this    *** variable parameter *** 
+is    *** variable parameter *** 
+Jack!    *** normal ***
+```
+##### 16.8.3.4 总结
+&emsp;&emsp; 扩展中的模式会独立的引用于包中的每个元素。
+
+#### 16.8.4 转发参数包
+https://zhuanlan.zhihu.com/p/183861524
+http://www.debugself.com/2017/09/13/cpp_rvalue/
+
 
 
 
