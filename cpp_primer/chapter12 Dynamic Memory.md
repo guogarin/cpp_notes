@@ -84,8 +84,9 @@
     - [7.2 allocator类 是用什么实现的？](#72-allocator类-是用什么实现的)
     - [7.3 allocator类 定在哪个头文件？](#73-allocator类-定在哪个头文件)
     - [7.4 allocator类 支持哪些操作？](#74-allocator类-支持哪些操作)
-      - [7.5 如何使用 allocator类？](#75-如何使用-allocator类)
-      - [7.6 allocator类中 拷贝和填充 未初始化内存的算法](#76-allocator类中-拷贝和填充-未初始化内存的算法)
+    - [7.5 如何使用 allocator类？](#75-如何使用-allocator类)
+    - [7.6 allocator类中 拷贝和填充 未初始化内存的算法](#76-allocator类中-拷贝和填充-未初始化内存的算法)
+    - [7.7 `allocator::construct`的构造原理是什么？](#77-allocatorconstruct的构造原理是什么)
   - [8. `shared_ptr`、`unique_ptr`分别在哪个头文件？](#8-shared_ptrunique_ptr分别在哪个头文件)
   - [RAII](#raii)
   - [文本查询程序](#文本查询程序)
@@ -753,7 +754,7 @@ delete[] p; // 释放
 | `a.deallocate(p, n)	 ` | 释放内存（从T*指针p开始的内存），这块内存保存了n个类型为T的对象；p必须是一个先前由allocate返回的指针，n必须是p创建时所要求的大小，在调用deallocate之前，用户必须对每个在这块内存中创建的对象调用destroy |
 | `a.construct(p, args)` | 在p指向的内存中构造一个对象，p必须是一个类型为T*的指针，指向一块原始内存；args可以是零个或多个参数，用来初始化构造的对象                                                                                |
 | `a.destroy(p)	     `   | 对p指向的对象执行析构函数，p为T*类型的指针                                                                                                                                                              |
-#### 7.5 如何使用 allocator类？
+### 7.5 如何使用 allocator类？
 (1) 构造allocator对象
 需要指明这个allocator可以分配的对象类型：
 ```cpp
@@ -815,7 +816,7 @@ int main ()
 >0 : 
 >*r : we can reuse the destroyed memory
 
-#### 7.6 allocator类中 拷贝和填充 未初始化内存的算法
+### 7.6 allocator类中 拷贝和填充 未初始化内存的算法
 &emsp;&emsp;标准库为 allocator类 定义了两个伴随算法,定义在头文件memory中：
 | Column A                     | Column B                                                |
 | ---------------------------- | ------------------------------------------------------- |
@@ -843,11 +844,54 @@ uninitialized_fill_n(q, vi.size(), 42);
 **需要注意啊的是：**
 &emsp;&emsp; 使用这些算法时，一定要保证空间够用！
 
+### 7.7 `allocator::construct`的构造原理是什么？
+&emsp;&emsp; 先说结论吧，`allocator::construct`可使用对用元素类型的任意构造函数，它会根据用户传给它的参数来匹配对应的构造函数。
+我们写一个例子来验证一下：
+```cpp
+class Tracer{
+public:
+    Tracer(){
+        cout<< "construct without parameter!" << endl;
+    }
+    Tracer(int v){
+        cout << "construct wit a int : " << v << "!" << endl;
+    }
+    ~Tracer(){
+        cout << "destroy!" << endl;
+    }
+};
+
+
+int main()
+{
+    allocator<Tracer> alloc;
+    auto const p = alloc.allocate(5);
+    auto q = p;
+    alloc.construct(q++);     // 构造第一个元素
+    alloc.construct(q++, 2);  // 构造第二个元素
+    while(q != p)
+        alloc.destroy(--q);
+    alloc.deallocate(p, 5);
+}
+```
+**运行结果：**
+```
+construct without parameter!
+construct wit a int : 2!
+destroy!
+destroy!
+```
+根据运行结果，我们可以看到`allocator::construct`其实是根据用户传给它的参数来匹配对用的构造函数的：
+* `alloc.construct(q++)` : 调用的是 `Tracer()`
+* `alloc.construct(q++, 2)` : 调用的是 `Tracer(int v)`
 
 
 
 
 
+
+&emsp;
+&emsp; 
 ## 8. `shared_ptr`、`unique_ptr`分别在哪个头文件？
 &emsp;&emsp; 都在 `memory`头文件中。
 

@@ -1645,9 +1645,79 @@ void StrVec::emplace_back(Args&&... args)
     alloc.construct(first_free++, std::forward<Args>(args)...);
 }
 ```
+对于`std::forward<Args>(args)...`，它既扩展了模板参数包`Args`，还扩展了函数参数包`args`，此模式生成如下形式的元素：`std::forward<Ti>(ti)`，其中`Ti`表示模板参数包中的第`i`个元素，`ti`表示函数参数包中的第`i`个元素，例如对于下面的调用：
+```cpp
+// svec是一个StrVec对象
+svec.emplace_back(10, 'c'); // adds cccccccccc as a new last element
+```
+`construct`调用中的模式会扩展出：
+```cpp
+string s1 = "the";
+string s2 = "end";
+std::forward<int>(10), std::forward<char>(c)
+```
+然后通过在此调用中使用`forward`。我们保证 如果调用一个右值调用`emplace_back`，则`construct`也将得到一个右值，例如在下面的调用中：
+```cpp
+svec.emplace_back(s1 + s2); // uses the move constructor
+```
+我们传给`emplace_back`是一个右值(因为`s1 + s2`是一个运算结果，这是一个右值)，因此他将以如下形式传递给`construct`:
+```cpp
+std::forward<string>(string("the end"))
+```
+因此`forward<string>` 的结果类型是`string&&`，因此`construct`将得到一个右值引用实参，接着`construct`就会调用`string`的移动构造函数来创建新元素。
 
+
+
+
+
+
+&emsp;
+&emsp;
+## 17 标准库`emplace_back`原理
+TODO:
+```cpp
+template<typename T, typename Allocator = allocator<T>>
+class vector{
+    public:
+    template<typename... Args>
+    void emplace_back(Args&&... args);
+};
+```
 https://zhuanlan.zhihu.com/p/183861524
 http://www.debugself.com/2017/09/13/cpp_rvalue/
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 18 如何编写 转发可变参数的模板？
+可变参数函数通常将它们的参数转发给其它函数。这种函数通常具有与我们的`emplace_back`一样的形式：
+```cpp
+// fun has zero or more parameters each of which is
+// an rvalue reference to a template parameter type
+template<typename... Args>
+void fun(Args&&... args) // expands Args as a list of rvalue references
+{
+    // the argument to work expands both Args and args
+    work(std::forward<Args>(args)...);
+}
+```
+这里我们希望将`fun`的所有实参转发给一个名为`work`的函数，假定由它来完成函数的实际工作。
+&emsp;&emsp; 由于`fun`的形参类型是万能引用，因此我们可以传递给他任何类型的实参，而且我们使用了`std::forward`来转发这些实参，因此在`work`函数里会得到保持。
+
+
+
+
+
+
+&emsp;
+&emsp;
+## 19 模板特例化
+
+
 
 
 
@@ -1704,3 +1774,4 @@ https://blog.csdn.net/LG1259156776/article/details/77992822?utm_source=blogxgwz1
 4. [现代C++之万能引用、完美转发、引用折叠](https://zhuanlan.zhihu.com/p/99524127)
 5. [引用折叠和完美转发](https://zhuanlan.zhihu.com/p/50816420)
 6. [谈谈完美转发(Perfect Forwarding)：完美转发 = 引用折叠 + 万能引用 + std::forward](https://zhuanlan.zhihu.com/p/369203981)
+7. [C/C++编程： allocator::construct可使用任意构造函数](https://blog.csdn.net/zhizhengguan/article/details/115098945)
