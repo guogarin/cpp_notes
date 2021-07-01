@@ -1621,6 +1621,31 @@ Jack!    *** normal ***
 &emsp;&emsp; 扩展中的模式会独立的引用于包中的每个元素。
 
 #### 16.8.4 转发参数包
+&emsp;&emsp; 在新标准下，我们可以组合使用 可变参数模板 和 `forward`机制来编写函数，实现将其实参不变地传递给其它函数。
+&emsp;&emsp; 作为例子，我们将为`StrVec`类添加一个 `emplace_back`成员。
+&emsp;&emsp; 在标准库中，`emplace_back`成员是一个可变成员模板，它用它的实参在容器管理的内存中直接构造一个元素。
+&emsp;&emsp; 我们为`StrVec`类添加的 `emplace_back`成员也应该是可变参数的，因为`string`有多个构造函数，参数各不相同，**而且我们希望能使用`string`的移动构造函数**，因此还需要保持传递给`emplace_back`的实参的所有类型消息（说到保持实参信息，`forward`就要派上用场了）。
+&emsp;&emsp; 如我们所知，保持类型信息是两个阶段的过程：
+* 第一，为了保持实参的类型信息，我们需要将`emplace_back`的形参定义为了万能引用（即：模板类型的右值引用）：
+```cpp
+class StrVec {
+public:
+    template <class... Args> void emplace_back(Args&&...); 
+    // 其它定义见第13章
+};
+```
+我们可以看到`emplace_back`的形参类型是`Args&&...`，其中`Args&&`说明形参是万能引用，`...`说明该形参是一个参数包。
+* 第二，当`emplace_back`将自己接收到的实参 传给`construct()`的时候，我们需要通过`forward`来保持实参的原始类型：
+```cpp
+template <class... Args>
+inline
+void StrVec::emplace_back(Args&&... args)
+{
+    chk_n_alloc(); // reallocates the StrVec if necessary
+    alloc.construct(first_free++, std::forward<Args>(args)...);
+}
+```
+
 https://zhuanlan.zhihu.com/p/183861524
 http://www.debugself.com/2017/09/13/cpp_rvalue/
 
