@@ -929,7 +929,7 @@ fref(a, b); // error: array types don't match
 **(4) `fref(a, b); `:**
 &emsp;&emsp; 在这个调用中，`fref()`的形参类型是引用，数组不会转换为指针(这个在本文的后面有解释)。因此`a`和`b`的类型是不匹配的，因此是错误的。
 
-### 12.3 如何理解 “当行参为引用时，数组不能转换为指针” 这句话？
+### 12.3 如何理解 “当形参为引用时，数组不能转换为指针” 这句话？
 我们编写了一个函数模板`fref()`，此函数接收两个引用参数：
 ```cpp
 template<typename T>
@@ -1715,12 +1715,32 @@ void fun(Args&&... args) // expands Args as a list of rvalue references
 
 &emsp;
 &emsp;
-## 19 模板特例化
+## 19 模板特例化(template specialization)
+### 19.1 什么是模板特例化？
 
 
+### 19.2 为什么需要模板特例化？
+&emsp;&emsp; 就拿我们之前编写的`compare()`就是一个很好的例子，它展示了函数模板的通用定义不适合一个特定类型的情况：对于字符指针，我们希望`compare()`通过调用`strcmp()`来比较字符串指针指向的内容，而不是单纯的比较指针的地址。
+```cpp
+// first version; can compare any two types
+template <typename T> 
+int compare(const T&, const T&);
 
+// second version to handle string literals
+template<size_t N, size_t M>
+int compare(const char (&)[N], const char (&)[M]);
+```
+我们再来考虑下面的调用：
+```cpp
+const char *p1 = "hi", *p2 = "mom";
+compare(p1, p2);    // calls the first template
+compare("hi", "mom"); // calls the template with two nontype parameters
+```
+`compare(p1, p2);`调用的是`compare(const T&, const T&)`，因为`p1、p2`都是指针(即：`const char *`)，而我们无法将指针转换为 数组的引用(即:`const char (&)[N]`)，所以` compare(const char (&)[N], const char (&)[M])`是不可行的。
+&emsp;&emsp; 其实我们编写`compare(const char (&)[N], const char (&)[M])`的本意就是为了比较 字符串指针指向的内容，但上面的代码并没有完成这个任务。
+&emsp;&emsp; 为了处理字符指针(而不是数组)，可以为第一个版本的`compare()`定义一个模板特例化版本。
 
-
+### 19.3 怎么做？
 
 
 
