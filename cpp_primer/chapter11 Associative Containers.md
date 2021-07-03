@@ -1,7 +1,7 @@
 # 第十一章 关联容器
 
 ## 关联容器 和 顺序容器 有何区别？
-关联容器 中的元素 是按关键字 来保存和访问的，而顺序容器 中的元素 是根据 它们在容器中的顺序  来保存和访问的。
+&emsp;&emsp; 关联容器 中的元素 是按关键字 来保存和访问的，而顺序容器 中的元素 是根据 它们在容器中的顺序  来保存和访问的。
 
 
 
@@ -66,11 +66,11 @@ int main ()
 
 &emsp;
 ## 关联容器对它的 关键字 有何要求？
-#### 有序容器 的要求
-&emsp;&emsp;对于**有序关联容器**，其关键字类型 必须定义 元素比较的方法，默认情况下，标准库使用关键字类型的 `<` 运算符来比较两个关键字
-# TODO:  
-#### 无序容器 的要求
+#### 有序容器 对关键字 的要求
+&emsp;&emsp; 对于**有序关联容器**，其关键字类型 必须定义 元素比较的方法，默认情况下，标准库使用关键字类型的 `<` 运算符来比较两个关键字
 
+#### 无序容器 对关键字 的要求
+笔记在本文后面。
 
 
 &emsp;
@@ -206,7 +206,7 @@ while(cin >> word){
 }
 ```
 #### 如何理解上面的 `++ret.first->second;`
-运算符`.` 运算符 `->`，先执行而`++`运算符比它俩都要低级，因此从左往右，先执行 运算符`.`，再执行 运算符 `->`，最后执行 `++`，也就是说，这个语句等同于：
+运算符`.` 运算符 `->`先执行，而`++`运算符比它俩都要低级，因此从左往右，先执行 运算符`.`，再执行 运算符 `->`，最后执行 `++`，也就是说，这个语句等同于：
 ```cpp
 ++((ret.first)->second);
 ```
@@ -250,7 +250,7 @@ auto cnt = authors.erase("Barth, John"); // cnt的值为2
 
 &emsp;
 ## 关联容器的下标操作
-#### 哪些 有 下标操作？
+#### 哪些 有 下标操作？为什么？
 只有 map 和 unordered_map 有，因为：
 set只有关键字，没有和关键字相关联的值，因此不需要下标操作；
 multimap、unordered_multimap 是因为它们存在多个值和一个关键字相关联，下标操作会引起歧义，因此没有。
@@ -430,7 +430,7 @@ int main ()
 ####  lower_bound()、 upper_bound() 的原理
 &emsp;&emsp;它俩都是基于 二分查找
 #### 使用 lower_bound()、upper_bound() 时需要注意什么？
-&emsp;&emsp; 因为它俩都是基于 二分查找，因此它们**只能用于 有序区间**，也就是说 `unordered` 系列的关联容器都不能用。
+&emsp;&emsp; 因为它俩都是基于 二分查找，因此它们**只能用于 有序区间**，也就是说 `unordered` 系列的关联容器都不能用，因为`unordered` 系列的关联容器都是无序的。
 
 
 
@@ -468,7 +468,8 @@ Hashtable和bucket
 &emsp;&emsp;由于无序关联容器的实现是基于hash函数，那么就需要解决冲突问题，解决冲突的办法比较常用有开放地址法和拉链法。**在C++的unordered_map当中，采用的是拉链法，并将每个节点称为”桶”，然后将出现冲突的元素都用链表串起来存放在一个桶里**。用拉链法的图来做个例子:
 <div align="center"> <img src="./pic/chapter11/拉链法_桶管理.png"> </div>
 <center> <font color=black> <b> 图5 桶管理 </b> </font> </center>
-在上图中，0-15是所谓的“桶”，每个桶后面都跟着一个链表，看起来就像“拉链”一样。一般是用vector来存放桶节点，list做拉链。
+
+在上图中，0-15是所谓的“桶”，每个桶后面都跟着一个链表，看起来就像“拉链”一样。**一般是用vector来存放桶节点，list做拉链。**
 
 #### 有可能多个元素映射到一个桶吗？如何解决这个问题？
 &emsp;&emsp; 有可能的，因为C++采用的是 ”桶”的方法 来解决冲突，也就是出现冲突的元素都存放在一个桶里，当这种情况发生的时候，会遍历桶内的所有元素，
@@ -531,7 +532,7 @@ max_load_factor()	| 返回或者设置当前 unordered_map 容器的最大负载
 rehash(n)	        | 尝试重新调整桶的数量为等于或大于 n 的值。如果 n 大于当前容器使用的桶数，则该方法会是容器重新哈希，该容器新的桶数将等于或大于 n。反之，如果 n 的值小于当前容器使用的桶数，则调用此方法可能没有任何作用。
 reserve(n)	        | 将容器使用的桶数（bucket_count() 方法的返回值）设置为最适合存储 n 个元素的桶数。
 hash_function()	    | 返回当前容器使用的哈希函数对象。
-#### 无序容器对关键字类型有何要求？为什么
+#### 无序容器对关键字类型有何要求？为什么？
 &emsp;&emsp; 默认情况下，无序容器使用关键字类型的`==`运算符来比较元素，它们还使用一个`hash<key_type>`类型的对象来生成每个元素的哈希值。
 &emsp;&emsp; 标准库为内置类型（包括指针）提供了hash模板。还为一些标准库类型，包括string和智能指针类型定义了hash。因此，我们可以直接定义关键字是内置类型（包括指针类型）、string还是智能指针的无序容器。
 &emsp;&emsp; 但是，我们不能直接定义 **关键字类型为自定义类类型** 的无序容器。与容器不同，不能直接使用哈希模板，而必须提供我们自己的hash模板版本，关于如何提供自己的hash模板版本，在16.5节阐述
@@ -559,7 +560,7 @@ bool eqOp(const Sales_data &lhs, const Sales_data &rhs)
 使用上述函数我们可以定义一个`unordered_multiset`：
 ```cpp
 // 定义类型别名，可以简化定义
-using SD_multiset = unordered_multimap<Sales_data, decltype(hash)*, decltype(eqOp)*>;
+using SD_multiset = unordered_multiset<Sales_data, decltype(hash)*, decltype(eqOp)*>;
 SD_multiset bookstore(42, hasher, eqOp);
 ```
 关于 `decltype(hash)*`：
@@ -567,7 +568,7 @@ SD_multiset bookstore(42, hasher, eqOp);
 &emsp; ② 注意区分`decltype(hash)`和 `decltype(hash())`,`decltype(hash)`返回的是 函数类型，`decltype(hash())`返回的是 函数返回值类型，具体也可以看第二章和第六章关于`decltype`的内容。
 假如类定义了自己的 `==`运算符，则可以值重载哈希函数：
 ```cpp
-// Foo必须有自己的 ==运算符
+// 用FooHash生成哈希值，Foo必须有自己的 ==运算符
 unordered_set<Foo, decltype(FooHash)*> fooSet(10, FooHash);
 ```
 

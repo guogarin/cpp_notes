@@ -1717,7 +1717,7 @@ void fun(Args&&... args) // expands Args as a list of rvalue references
 &emsp;
 ## 19 模板特例化(template specialization)
 ### 19.1 什么是模板特例化？
-
+&emsp;&emsp; 特例化理解成 为一个特定的模板 提供实例化。
 
 ### 19.2 为什么需要模板特例化？
 &emsp;&emsp; 就拿我们之前编写的`compare()`就是一个很好的例子，它展示了函数模板的通用定义不适合一个特定类型的情况：对于字符指针，我们希望`compare()`通过调用`strcmp()`来比较字符串指针指向的内容，而不是单纯的比较指针的地址。
@@ -1740,7 +1740,87 @@ compare("hi", "mom"); // calls the template with two nontype parameters
 &emsp;&emsp; 其实我们编写`compare(const char (&)[N], const char (&)[M])`的本意就是为了比较 字符串指针指向的内容，但上面的代码并没有完成这个任务。
 &emsp;&emsp; 为了处理字符指针(而不是数组)，可以为第一个版本的`compare()`定义一个模板特例化版本。
 
-### 19.3 怎么做？
+
+### 19.3 如何编写 特例化模板？
+&emsp;&emsp; 当我们 特例化一个函数模板 时，必须为原模板参数都提供实参。为了指出我们正在实例化一个模板，需要使用关键字`template`，后面再跟着一对空尖括号`<>`，尖括号指出我们将为圆模板的所有模板参数提供实参：
+```cpp
+// special version of compare to handle pointers to character arrays
+template <> // 为了指出我们正在实例化一个模板，需要使用关键字 template，后面再跟着一对空尖括号 <>
+int compare(const char* const &p1, const char* const &p2)
+{
+    return strcmp(p1, p2);
+}
+```
+**当我们定义一个特例化版本时，函数参数类型必须与一个先前声明的模板中对应的类型匹配**。本例我们特例化的是：
+```cpp
+template <typename T> 
+int compare(const T&, const T&);
+```
+其中函数参数为一个`const`类型的引用。类似类型别名，模板参数类型、指针及`const`之间的相互作用会令人惊讶。
+我希望定义此函数的一个特例化版本，其中`T`为`const char*`。我们的函数要求一个指向此类型`const`版本的引用。一个指针类型的`const`版本是有个常量指针而不是指向`const`类型的指针。我们需要在特例化版本中使用的类型是`const char* const& *`，即一个指向`const char`的`const`指针的引用。
+
+### 19.4 模板特例化 和 模板函数重载有何区别？
+&emsp;&emsp; 它俩不是一个东西：当我们定义函数模板的特例化版本时，我们本质上是接管了编译器的工作。也就是说，我们为原模板的一个特殊实例提供了定义。换句话说，一个特例化版本 本质上是一个实例，而不是 函数的一个重载版本。
+&emsp;&emsp; **总的来说，特例化的本质是** 实例化一个模板，而不是重载它，因此，特例化并不影响函数匹配。
+
+### 19.5 看代码，回答问题
+```cpp
+template<typename T>
+int compare(const T& v1, const T& v2){
+    cout << "const T&" << endl;
+    return v1 > v2;
+}
+
+template <> // 后面将这行注释掉
+int compare(const char* const&v1, const char* const&v2){
+    cout << "const char* const&" << endl;
+    return strcmp(v1, v2);
+}
+
+template<size_t N, size_t M>
+int compare(const char(&v1)[N], const char(&v2)[M]){
+    cout << "const char(&v1)[N]" << endl;
+    return strcmp(v1, v2);
+}
+
+int main()
+{
+    const char * sp1 = "Hello", *sp2 = "world!";
+    compare("Hello", "world!");
+    compare(sp1, sp2);
+}
+```
+#### 19.5.1 上面这段代码的运行结果是什么？为什么？
+运行结果为：
+```
+const char(&v1)[N]
+const char* const&
+```
+* 对于调用`compare("Hello", "world!")`，最佳匹配其实是`compare(const char(&v1)[N], const char(&v2)[M])`，因为实参`"Hello", "world!"`本身就是一个字符串数组。
+* 对于调用`compare(sp1, sp2)`，因为`s1`和`s2`都是字符串指针，而我们无法将一个指针转换为数组的引用，因此通用型模板`compare(const T& v1, const T& v2)`是唯一匹配的模板，但是我们在这里定义了`compare(const T& v1, const T& v2)`的一个特例化版本`compare(const char* const&v1, const char* const&v2)`，相对于`const T&`，`const char* const&`更接近于 实参`s1`和`s2`，因此这里调用的是实例化版本。
+
+#### 19.5.2 对于上面的代码，如果将`template <>`注释掉，运行结果是什么？
+运行结果为：
+```
+const char* const&
+const char* const&
+```
+将`template <>`注释掉后，`compare(const char* const&v1, const char* const&v2)`就变成了一个普通函数，而非模板函数，因此：
+* 对于调用`compare("Hello", "world!")`，三个`compare`版本都可以的，但是编译器会选择最特例化的版本，在这里最特例化的版本是 非模板函数，即`compare(const char* const&v1, const char* const&v2)`。
+* 对于调用`compare(sp1, sp2)`，`compare(const char* const&v1, const char* const&v2)`和`compare(const T& v1, const T& v2)`都是可以的，但是编译器会选择最特例化的版本，在这里最特例化的版本是 非模板函数，即`compare(const char* const&v1, const char* const&v2)`
+
+### 19.6 类模板的特例化
+TODO:
+
+### 总结：
+#### 是什么？
+&emsp;&emsp; 特例化就是为了原模板提供了一个特殊的实例，也就是说，特例化的本质是 实例化一个模板，而不是重载它。
+#### 为什么需要？
+&emsp;&emsp; 
+#### 怎么用？
+&emsp;&emsp; 
+
+
 
 
 
